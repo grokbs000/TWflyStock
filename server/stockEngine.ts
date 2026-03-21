@@ -185,11 +185,16 @@ async function fetchV8Chart(ticker: string, range = "6mo"): Promise<OhlcvBar[] |
     if (!timestamp || !q) return null;
 
     const bars: OhlcvBar[] = [];
+    const seenDates = new Set<string>();
     for (let i = 0; i < timestamp.length; i++) {
       const close = q.close[i];
       if (close == null || close === 0) continue;
+      const date = new Date(timestamp[i] * 1000).toISOString().slice(0, 10);
+      if (seenDates.has(date)) continue;
+      seenDates.add(date);
+
       bars.push({
-        date: new Date(timestamp[i] * 1000).toISOString().slice(0, 10),
+        date,
         open: q.open[i] ?? close,
         high: q.high[i] ?? close,
         low: q.low[i] ?? close,
@@ -212,7 +217,18 @@ export async function getStockData(
   if (!bars || bars.length < 20) {
     bars = await fetchV8Chart(`${symbol}.TWO`, "6mo");
   }
-  return bars && bars.length >= 20 ? bars : null;
+  if (!bars || bars.length < 20) return null;
+
+  // Final safety: deduplicate by date and sort ascending
+  const finalBars: OhlcvBar[] = [];
+  const seenDates = new Set<string>();
+  for (const b of bars) {
+    if (seenDates.has(b.date)) continue;
+    seenDates.add(b.date);
+    finalBars.push(b);
+  }
+
+  return finalBars.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // ─── 技術指標計算 ──────────────────────────────────────────────────────────
@@ -494,9 +510,11 @@ export async function getChartData(
   symbol: string,
   periodDays = 90
 ): Promise<ChartData | null> {
-  const bars = await getStockData(symbol, periodDays);
-  if (!bars || bars.length === 0) return null;
+  const allBars = await getStockData(symbol, periodDays);
+  if (!allBars || allBars.length === 0) return null;
 
+  // 根據 periodDays 前後切片 (通常取最後 N 天)
+  const bars = allBars.slice(-periodDays);
   const close = bars.map((b) => b.close);
   const volume = bars.map((b) => b.volume);
 

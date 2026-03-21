@@ -100,23 +100,32 @@ export default function CandlestickChart({ data, symbol }: CandlestickChartProps
       wickUpColor: COLORS.up,
       wickDownColor: COLORS.down,
     });
-    candleSeries.setData(
-      validOHLCV.map((d) => ({
-        time: d.date as Time,
-        open: d.open!,
-        high: d.high!,
-        low: d.low!,
-        close: d.close!,
-      }))
+    // Defensive: deduplicate by time (lightweight-charts crashes on duplicates)
+    const ohlcvData = validOHLCV.map((d) => ({
+      time: d.date as Time,
+      open: d.open!,
+      high: d.high!,
+      low: d.low!,
+      close: d.close!,
+    }));
+
+    const uniqueOhlcv = ohlcvData.filter((val, index, self) => 
+      index === self.findIndex((t) => t.time === val.time)
     );
+
+    try {
+      candleSeries.setData(uniqueOhlcv);
+    } catch (e) {
+      console.error("CandleSeries setData error:", e);
+    }
 
     // MA Lines
     [
-      { maData: data.ma5, color: COLORS.ma5 },
-      { maData: data.ma10, color: COLORS.ma10 },
-      { maData: data.ma20, color: COLORS.ma20 },
-      { maData: data.ma40, color: COLORS.ma40 },
-    ].forEach(({ maData, color }) => {
+      { maData: data.ma5, color: COLORS.ma5, period: 5 },
+      { maData: data.ma10, color: COLORS.ma10, period: 10 },
+      { maData: data.ma20, color: COLORS.ma20, period: 20 },
+      { maData: data.ma40, color: COLORS.ma40, period: 40 },
+    ].forEach(({ maData, color, period }) => {
       const s = priceChart.addSeries(LineSeries, {
         color,
         lineWidth: 2,
@@ -124,11 +133,20 @@ export default function CandlestickChart({ data, symbol }: CandlestickChartProps
         lastValueVisible: false,
         crosshairMarkerVisible: false,
       });
-      s.setData(
-        data.dates
-          .map((date, i) => ({ time: date as Time, value: maData[i] }))
-          .filter((d): d is { time: Time; value: number } => d.value !== null)
+
+      const maPoints = data.dates
+        .map((date, i) => ({ time: date as Time, value: maData[i] }))
+        .filter((d): d is { time: Time; value: number } => d.value !== null);
+
+      const uniqueMa = maPoints.filter((val, index, self) => 
+        index === self.findIndex((t) => t.time === val.time)
       );
+
+      try {
+        s.setData(uniqueMa);
+      } catch (e) {
+        console.error(`MA${period} setData error:`, e);
+      }
     });
 
     // ── Volume Chart ─────────────────────────────────────────────────────────
@@ -145,16 +163,24 @@ export default function CandlestickChart({ data, symbol }: CandlestickChartProps
       priceFormat: { type: "volume" },
       priceScaleId: "right",
     });
-    volumeSeries.setData(
-      validOHLCV.map((d, i) => ({
-        time: d.date as Time,
-        value: d.volume,
-        color:
-          i > 0 && d.close! >= validOHLCV[i - 1].close!
-            ? COLORS.up + "88"
-            : COLORS.down + "88",
-      }))
+    const volumeData = validOHLCV.map((d, i) => ({
+      time: d.date as Time,
+      value: d.volume,
+      color:
+        i > 0 && d.close! >= validOHLCV[i - 1].close!
+          ? COLORS.up + "88"
+          : COLORS.down + "88",
+    }));
+
+    const uniqueVolume = volumeData.filter((val, index, self) => 
+      index === self.findIndex((t) => t.time === val.time)
     );
+
+    try {
+      volumeSeries.setData(uniqueVolume);
+    } catch (e) {
+      console.error("VolumeSeries setData error:", e);
+    }
 
     // ── Indicator Chart ───────────────────────────────────────────────────────
     const indicatorChart = createChart(indicatorRef.current, {
@@ -169,11 +195,19 @@ export default function CandlestickChart({ data, symbol }: CandlestickChartProps
         priceLineVisible: false,
         lastValueVisible: true,
       });
-      obvSeries.setData(
-        data.dates
-          .map((date, i) => ({ time: date as Time, value: data.obv[i] }))
-          .filter((d): d is { time: Time; value: number } => d.value !== null)
+      const obvData = data.dates
+        .map((date, i) => ({ time: date as Time, value: data.obv[i] }))
+        .filter((d): d is { time: Time; value: number } => d.value !== null);
+
+      const uniqueObv = obvData.filter((val, index, self) => 
+        index === self.findIndex((t) => t.time === val.time)
       );
+
+      try {
+        obvSeries.setData(uniqueObv);
+      } catch (e) {
+        console.error("OBV setData error:", e);
+      }
     } else {
       const vrSeries = indicatorChart.addSeries(LineSeries, {
         color: COLORS.vr,
@@ -181,11 +215,19 @@ export default function CandlestickChart({ data, symbol }: CandlestickChartProps
         priceLineVisible: false,
         lastValueVisible: true,
       });
-      vrSeries.setData(
-        data.dates
-          .map((date, i) => ({ time: date as Time, value: data.vr26[i] }))
-          .filter((d): d is { time: Time; value: number } => d.value !== null)
+      const vrData = data.dates
+        .map((date, i) => ({ time: date as Time, value: data.vr26[i] }))
+        .filter((d): d is { time: Time; value: number } => d.value !== null);
+
+      const uniqueVr = vrData.filter((val, index, self) => 
+        index === self.findIndex((t) => t.time === val.time)
       );
+
+      try {
+        vrSeries.setData(uniqueVr);
+      } catch (e) {
+        console.error("VR setData error:", e);
+      }
 
       // Reference line at 120
       const refSeries = indicatorChart.addSeries(LineSeries, {
@@ -205,12 +247,18 @@ export default function CandlestickChart({ data, symbol }: CandlestickChartProps
     }
 
     // Sync time scales
-    const charts: IChartApi[] = [priceChart, volumeChart, indicatorChart];
+    const charts: IChartApi[] = [priceChart, volumeChart, indicatorChart].filter(Boolean);
     charts.forEach((chart, idx) => {
       chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
         if (!range) return;
         charts.forEach((other, j) => {
-          if (j !== idx) other.timeScale().setVisibleLogicalRange(range);
+          if (j !== idx && other && other.timeScale) {
+            try {
+              other.timeScale().setVisibleLogicalRange(range);
+            } catch (e) {
+              // Ignore sync errors to prevent crash
+            }
+          }
         });
       });
     });
