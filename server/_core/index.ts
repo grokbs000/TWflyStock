@@ -44,7 +44,7 @@ export async function createApp() {
   registerOAuthRoutes(app);
 
   // ─── 篩選 API 端點（直接使用 TypeScript 股票引擎，無需 Python）
-  app.post("/api/screen-start", (req, res) => {
+  app.post("/api/screen-start", (req: express.Request, res: express.Response) => {
     const jobId = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const body = req.body || {};
     void startScreenJob(jobId, {
@@ -59,7 +59,7 @@ export async function createApp() {
     res.json({ jobId });
   });
 
-  app.get("/api/screen-status/:jobId", (req, res) => {
+  app.get("/api/screen-status/:jobId", (req: express.Request, res: express.Response) => {
     const job = getJob(req.params.jobId);
     if (!job) {
       res.status(404).json({ error: "Job not found" });
@@ -77,7 +77,7 @@ export async function createApp() {
     });
   });
 
-  app.post("/api/screen-cancel/:jobId", (req, res) => {
+  app.post("/api/screen-cancel/:jobId", (req: express.Request, res: express.Response) => {
     cancelJob(req.params.jobId);
     res.json({ ok: true });
   });
