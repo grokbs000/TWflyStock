@@ -2,6 +2,8 @@ import "dotenv/config";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import * as schema from "../drizzle/schema";
+import fs from "node:fs";
+import path from "node:path";
 import { users, screenerSettings, screenerResults, screenerRuns, notifications, watchlist } from "../drizzle/schema";
 import { eq, desc, and, count } from "drizzle-orm";
 
@@ -9,12 +11,34 @@ let _db: any = null;
 
 export async function getDb() {
   if (!_db) {
-    const dbPath = process.env.DATABASE_URL || "sqlite.db";
+    let dbPath = process.env.DATABASE_URL || "sqlite.db";
+    const isVercel = !!process.env.VERCEL;
+
+    if (isVercel) {
+      const tmpPath = path.join("/tmp", "sqlite.db");
+      if (!fs.existsSync(tmpPath)) {
+        try {
+          const srcPath = path.resolve(process.cwd(), "sqlite.db");
+          if (fs.existsSync(srcPath)) {
+            fs.copyFileSync(srcPath, tmpPath);
+            console.log("[Database] Copied bundled DB to /tmp");
+          } else {
+            console.log("[Database] No bundled DB found, creating new one in /tmp");
+          }
+        } catch (e) {
+          console.error("[Database] Failed to setup /tmp DB:", e);
+        }
+      }
+      dbPath = tmpPath;
+    }
+
     try {
       const sqlite = new Database(dbPath);
-      sqlite.pragma("journal_mode = WAL");
+      if (!isVercel) {
+        sqlite.pragma("journal_mode = WAL");
+      }
       _db = drizzle(sqlite);
-      console.log(`[Database] Connected to local SQLite (${dbPath})`);
+      console.log(`[Database] Connected to SQLite (${dbPath})`);
       await initDb(_db);
     } catch (error) {
       console.error("[Database] Failed to connect to SQLite:", error);

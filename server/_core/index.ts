@@ -10,6 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { startScreenJob, getJob, cancelJob } from "../stockEngine";
+import { getDb } from "../db";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -41,6 +42,21 @@ export async function createApp(server?: any) {
 
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+
+  // 診斷端點
+  app.get("/api/health", async (req: any, res: any) => {
+    try {
+      const db = await getDb();
+      res.json({ status: "ok", db: "connected", env: process.env.NODE_ENV });
+    } catch (e: any) {
+      res.status(500).json({ 
+        status: "error", 
+        message: e.message, 
+        stack: e.stack,
+        code: e.code 
+      });
+    }
+  });
 
   // ─── 篩選 API 端點
   app.post("/api/screen-start", (req: any, res: any) => {
