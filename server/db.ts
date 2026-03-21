@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/libsql";
+import { createClient } from "@libsql/client";
 import * as schema from "../drizzle/schema";
 import fs from "node:fs";
 import path from "node:path";
@@ -11,7 +11,7 @@ let _db: any = null;
 
 export async function getDb() {
   if (!_db) {
-    let dbPath = process.env.DATABASE_URL || "sqlite.db";
+    let dbUrl = process.env.DATABASE_URL || "file:sqlite.db";
     const isVercel = !!process.env.VERCEL;
 
     if (isVercel) {
@@ -29,19 +29,16 @@ export async function getDb() {
           console.error("[Database] Failed to setup /tmp DB:", e);
         }
       }
-      dbPath = tmpPath;
+      dbUrl = `file:${tmpPath}`;
     }
 
     try {
-      const sqlite = new Database(dbPath);
-      if (!isVercel) {
-        sqlite.pragma("journal_mode = WAL");
-      }
-      _db = drizzle(sqlite);
-      console.log(`[Database] Connected to SQLite (${dbPath})`);
+      const client = createClient({ url: dbUrl });
+      _db = drizzle(client);
+      console.log(`[Database] Connected to LibSQL (${dbUrl})`);
       await initDb(_db);
     } catch (error) {
-      console.error("[Database] Failed to connect to SQLite:", error);
+      console.error("[Database] Failed to connect to LibSQL:", error);
       throw error;
     }
   }
