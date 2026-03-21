@@ -76,6 +76,12 @@ export async function getUsersWithAutoRun() {
   return db.select().from(users);
 }
 
+export async function getUserByOpenId(openId: string) {
+  const db = await getDb();
+  const results = await db.select().from(users).where(eq(users.openId, openId));
+  return results[0] || null;
+}
+
 // --- Screener Settings ---
 export async function getScreenerSettings(userId: number) {
   const db = await getDb();

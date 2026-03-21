@@ -167,6 +167,22 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "wouter"],
+          "chart-vendor": ["lightweight-charts", "recharts", "lucide-react"],
+          "ui-vendor": [
+            "@/components/ui/button",
+            "@/components/ui/card",
+            "@/components/ui/badge",
+            "@/components/ui/avatar",
+            "@/components/ui/dropdown-menu",
+            "@/components/ui/tooltip",
+          ],
+        },
+      },
+    },
   },
   server: {
     host: true,
