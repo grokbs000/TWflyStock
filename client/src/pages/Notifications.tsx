@@ -58,7 +58,7 @@ export default function Notifications() {
     onError: (err: any) => toast.error(`篩選失敗：${err.message}`),
   }) || { mutate: () => {}, isPending: false };
 
-  const unreadCount = notifications?.filter((n) => !n.isRead).length ?? 0;
+  const unreadCount = notifications?.filter((n: any) => !n.isRead).length ?? 0;
 
   return (
     <AppLayout>
@@ -112,7 +112,7 @@ export default function Notifications() {
           </div>
         ) : (
           <div className="space-y-3">
-            {notifications.map((notif) => (
+            {notifications.map((notif: any) => (
               <Card
                 key={notif.id}
                 className={`p-4 border transition-all duration-200 cursor-pointer group ${

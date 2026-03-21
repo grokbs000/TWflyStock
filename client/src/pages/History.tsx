@@ -129,7 +129,7 @@ export default function History() {
               <div className="text-center py-8 text-muted-foreground text-sm">尚無篩選記錄</div>
             ) : (
               <div className="space-y-2">
-                {history.map((run) => (
+                {history.map((run: any) => (
                   <button
                     key={run.id}
                     onClick={() => handleSelectRun(run.id)}
@@ -210,7 +210,7 @@ export default function History() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-                    {runDetail.results.map((stock) => (
+                    {runDetail.results.map((stock: any) => (
                       <StockCard key={stock.id} stock={stock} />
                     ))}
                   </div>

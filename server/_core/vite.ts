@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 import fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
@@ -21,7 +21,7 @@ export async function setupVite(app: express.Application, server: Server) {
   });
 
   app.use(vite.middlewares);
-  app.use("*", async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use("*", async (req: Request, res: Response, next: NextFunction) => {
     const url = req.originalUrl;
 
     try {
@@ -61,7 +61,7 @@ export function serveStatic(app: express.Application) {
   app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req: express.Request, res: express.Response) => {
+  app.use("*", (_req: Request, res: Response) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

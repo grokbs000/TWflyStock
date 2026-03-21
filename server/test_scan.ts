@@ -21,7 +21,7 @@ async function testScan() {
         console.log("FAIL (no data or too few bars)");
       }
     } catch (e) {
-      console.log(`ERROR: ${e.message}`);
+      console.log(`ERROR: ${(e as any).message}`);
     }
   }
   
