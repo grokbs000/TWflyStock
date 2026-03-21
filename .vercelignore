@@ -1,0 +1,11 @@
+# Ignore Python files to prevent Vercel misdetection
+**/*.py
+requirements.txt
+Pipfile
+Pipfile.lock
+.python-version
+__pycache__/
+*.pyc
+venv/
+.venv/
+dist/server/stock_service.py
