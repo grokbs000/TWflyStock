@@ -1,6 +1,3 @@
-import "dotenv/config";
-import { drizzle } from "drizzle-orm/libsql";
-import { createClient } from "@libsql/client";
 import * as schema from "../drizzle/schema";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,38 +5,62 @@ import { users, screenerSettings, screenerResults, screenerRuns, notifications, 
 import { eq, desc, and, count } from "drizzle-orm";
 
 let _db: any = null;
+let LibSQL: any = null;
+let DrizzleLib: any = null;
+
+async function loadDbLibs() {
+  if (!LibSQL || !DrizzleLib) {
+    try {
+      LibSQL = await import("@libsql/client");
+      DrizzleLib = await import("drizzle-orm/libsql");
+    } catch (e) {
+      console.error("[Database] Failed to load DB libraries:", e);
+      throw e;
+    }
+  }
+}
 
 export async function getDb() {
+  if (_db === "FAILED") return null;
   if (!_db) {
     let dbUrl = process.env.DATABASE_URL || "file:sqlite.db";
     const isVercel = !!process.env.VERCEL;
 
     if (isVercel) {
-      const tmpPath = path.join("/tmp", "sqlite.db");
-      if (!fs.existsSync(tmpPath)) {
-        try {
-          const srcPath = path.resolve(process.cwd(), "sqlite.db");
-          if (fs.existsSync(srcPath)) {
-            fs.copyFileSync(srcPath, tmpPath);
-            console.log("[Database] Copied bundled DB to /tmp");
-          } else {
-            console.log("[Database] No bundled DB found, creating new one in /tmp");
+      // Only use fallback if it's not a remote LibSQL URL
+      const isRemote = dbUrl.startsWith("libsql://") || dbUrl.startsWith("https://") || dbUrl.startsWith("http://");
+      
+      if (!isRemote) {
+        const tmpPath = path.join("/tmp", "sqlite.db");
+        if (!fs.existsSync(tmpPath)) {
+          try {
+            const srcPath = path.resolve(process.cwd(), "sqlite.db");
+            if (fs.existsSync(srcPath)) {
+              fs.copyFileSync(srcPath, tmpPath);
+              console.log("[Database] Copied bundled DB to /tmp");
+            }
+          } catch (e) {
+            console.error("[Database] Failed to setup /tmp DB:", e);
           }
-        } catch (e) {
-          console.error("[Database] Failed to setup /tmp DB:", e);
         }
+        dbUrl = `file:${tmpPath}`;
       }
-      dbUrl = `file:${tmpPath}`;
     }
 
+
     try {
-      const client = createClient({ url: dbUrl });
-      _db = drizzle(client);
+      await loadDbLibs();
+      const client = LibSQL.createClient({ url: dbUrl });
+      _db = DrizzleLib.drizzle(client);
       console.log(`[Database] Connected to LibSQL (${dbUrl})`);
-      await initDb(_db);
+      // Initialize only if not in production or if needed
+      if (!isVercel) {
+        await initDb(_db);
+      }
     } catch (error) {
-      console.error("[Database] Failed to connect to LibSQL:", error);
-      throw error;
+      console.error("[Database] CRITICAL: Failed to connect to LibSQL:", error);
+      _db = "FAILED";
+      return null;
     }
   }
   return _db;
@@ -84,6 +105,7 @@ export const GUEST_USER = {
 // --- User Operations ---
 export async function upsertUser(data: any) {
   const db = await getDb();
+  if (!db) return [];
   return db.insert(users).values(data).onConflictDoUpdate({
     target: users.openId,
     set: data,
@@ -92,17 +114,20 @@ export async function upsertUser(data: any) {
 
 export async function getUserById(id: number) {
   const db = await getDb();
+  if (!db) return id === 1 ? GUEST_USER : null;
   const results = await db.select().from(users).where(eq(users.id, id));
   return results[0] || null;
 }
 
 export async function getUsersWithAutoRun() {
   const db = await getDb();
+  if (!db) return [];
   return db.select().from(users);
 }
 
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
+  if (!db) return openId === "guest-user" ? GUEST_USER : null;
   const results = await db.select().from(users).where(eq(users.openId, openId));
   return results[0] || null;
 }
@@ -110,6 +135,7 @@ export async function getUserByOpenId(openId: string) {
 // --- Screener Settings ---
 export async function getScreenerSettings(userId: number) {
   const db = await getDb();
+  if (!db) return { userId, name: "預設設定", isDefault: true, scanLimit: 100, maPeriods: [5, 10, 20, 40] };
   const results = await db.select().from(screenerSettings).where(eq(screenerSettings.userId, userId));
   const settings = results[0];
   if (settings && typeof settings.maPeriods === "string") {
@@ -124,6 +150,7 @@ export async function getScreenerSettings(userId: number) {
 
 export async function upsertScreenerSettings(userId: number, data: any) {
   const db = await getDb();
+  if (!db) return [];
   const insertData = {
     ...data,
     userId,
@@ -138,12 +165,14 @@ export async function upsertScreenerSettings(userId: number, data: any) {
 
 export async function toggleAutoRun(userId: number, enabled: boolean) {
   const db = await getDb();
+  if (!db) return;
   return db.update(screenerSettings).set({ autoRunEnabled: enabled }).where(eq(screenerSettings.userId, userId));
 }
 
 // --- Screener Runs ---
 export async function createScreenerRun(data: any) {
   const db = await getDb();
+  if (!db) return Date.now(); // jobId fallback
   const res = await db.insert(screenerRuns).values({
     ...data,
     createdAt: new Date(),
@@ -153,29 +182,34 @@ export async function createScreenerRun(data: any) {
 
 export async function updateScreenerRun(id: number, data: any) {
   const db = await getDb();
+  if (!db) return;
   return db.update(screenerRuns).set(data).where(eq(screenerRuns.id, id));
 }
 
 export async function getLatestScreenerRun() {
   const db = await getDb();
+  if (!db) return null;
   const results = await db.select().from(screenerRuns).orderBy(desc(screenerRuns.createdAt)).limit(1);
   return results[0] || null;
 }
 
 export async function getScreenerRunById(id: number) {
   const db = await getDb();
+  if (!db) return null;
   const results = await db.select().from(screenerRuns).where(eq(screenerRuns.id, id));
   return results[0] || null;
 }
 
 export async function getScreenerRunHistory(limit = 30) {
   const db = await getDb();
+  if (!db) return [];
   return db.select().from(screenerRuns).orderBy(desc(screenerRuns.createdAt)).limit(limit);
 }
 
 // --- Screener Results ---
 export async function insertScreenerResults(data: any[]) {
   const db = await getDb();
+  if (!db) return;
   const chunkSize = 50;
   for (let i = 0; i < data.length; i += chunkSize) {
     const chunk = data.slice(i, i + chunkSize);
@@ -186,6 +220,7 @@ export async function insertScreenerResults(data: any[]) {
 
 export async function getLatestScreenerResults() {
   const db = await getDb();
+  if (!db) return [];
   const latestRun = await getLatestScreenerRun();
   if (!latestRun) return [];
   return db.select().from(screenerResults).where(eq(screenerResults.runId, latestRun.id));
@@ -193,12 +228,14 @@ export async function getLatestScreenerResults() {
 
 export async function getScreenerResultsByRunId(runId: number) {
   const db = await getDb();
+  if (!db) return [];
   return db.select().from(screenerResults).where(eq(screenerResults.runId, runId));
 }
 
 // --- Notifications ---
 export async function createNotification(data: any) {
   const db = await getDb();
+  if (!db) return [];
   return db.insert(notifications).values({
     ...data,
     isRead: false,
@@ -208,32 +245,38 @@ export async function createNotification(data: any) {
 
 export async function getNotifications(userId: number, limit = 50) {
   const db = await getDb();
+  if (!db) return [];
   return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(limit);
 }
 
 export async function getUnreadNotificationCount(userId: number) {
   const db = await getDb();
+  if (!db) return 0;
   const res = await db.select({ count: count() }).from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
   return Number(res[0]?.count || 0);
 }
 
 export async function markNotificationRead(id: number) {
   const db = await getDb();
+  if (!db) return;
   return db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
 }
 
 export async function updateNotificationRead(id: number, isRead: boolean) {
   const db = await getDb();
+  if (!db) return;
   return db.update(notifications).set({ isRead }).where(eq(notifications.id, id));
 }
 
 export async function markAllNotificationsRead(userId: number) {
   const db = await getDb();
+  if (!db) return;
   return db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, userId));
 }
 
 export async function deleteNotification(id: number, _userId?: number) {
   const db = await getDb();
+  if (!db) return;
   // We ignore userId for now as id is unique enough
   return db.delete(notifications).where(eq(notifications.id, id));
 }
@@ -241,6 +284,7 @@ export async function deleteNotification(id: number, _userId?: number) {
 // --- Watchlist ---
 export async function addToWatchlist(data: any) {
   const db = await getDb();
+  if (!db) return null;
   const res = await db.insert(watchlist).values({
     ...data,
     createdAt: new Date(),
@@ -250,16 +294,19 @@ export async function addToWatchlist(data: any) {
 
 export async function removeFromWatchlist(userId: number, stockCode: string) {
   const db = await getDb();
+  if (!db) return;
   return db.delete(watchlist).where(and(eq(watchlist.userId, userId), eq(watchlist.stockCode, stockCode)));
 }
 
 export async function getWatchlist(userId: number) {
   const db = await getDb();
+  if (!db) return [];
   return db.select().from(watchlist).where(eq(watchlist.userId, userId));
 }
 
 export async function isInWatchlist(userId: number, stockCode: string) {
   const db = await getDb();
+  if (!db) return false;
   const results = await db.select().from(watchlist).where(and(eq(watchlist.userId, userId), eq(watchlist.stockCode, stockCode)));
   return results.length > 0;
 }
