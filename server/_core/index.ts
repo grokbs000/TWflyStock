@@ -32,9 +32,8 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
-export async function createApp() {
+export async function createApp(server?: any) {
   const app = express();
-  const server = createServer(app);
 
   // Configure body parser with larger size limit
   app.use(express.json({ limit: "50mb" }));
@@ -43,7 +42,7 @@ export async function createApp() {
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
 
-  // ─── 篩選 API 端點（直接使用 TypeScript 股票引擎，無需 Python）
+  // ─── 篩選 API 端點
   app.post("/api/screen-start", (req: any, res: any) => {
     const jobId = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const body = req.body || {};
@@ -91,25 +90,30 @@ export async function createApp() {
     })
   );
 
-  // development mode uses Vite, production mode uses static files
+  // setup environment specific middleware
+  if (process.env.NODE_ENV === "development" && server) {
+    await setupVite(app, server);
+  } else if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+    serveStatic(app);
+  }
+
   return app;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url) || process.env.NODE_ENV === "development") {
-  createApp().then(async (app) => {
-    const server = createServer(app);
-    if (process.env.NODE_ENV === "development") {
-      await setupVite(app, server);
-    } else {
-      serveStatic(app);
-    }
+// Support direct execution for local dev/prod
+const isMain = process.argv[1] === fileURLToPath(import.meta.url);
+if (isMain || (process.env.NODE_ENV === "development" && !process.env.VERCEL)) {
+  const preferredPort = parseInt(process.env.PORT || "3000");
+  findAvailablePort(preferredPort).then(async (port) => {
+    const app = express(); // Placeholder, createApp will handle it
+    const dummyServer = createServer(app);
+    const realApp = await createApp(dummyServer);
     
-    const preferredPort = parseInt(process.env.PORT || "3000");
-    const port = await findAvailablePort(preferredPort);
-    if (port !== preferredPort) {
-      console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
-    }
-    server.listen(port, () => {
+    // Replace listener with the one from createApp if needed, 
+    // but better to just use the one we created.
+    const finalServer = createServer(realApp);
+
+    finalServer.listen(port, () => {
       console.log(`Server running on http://localhost:${port}/`);
     });
   }).catch(console.error);
