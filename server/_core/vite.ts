@@ -1,4 +1,4 @@
-import express, { type Request, type Response, type NextFunction } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
