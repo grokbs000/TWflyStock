@@ -53,7 +53,11 @@ export const GUEST_USER = {
   openId: "guest-user",
   name: "訪客使用者",
   email: "guest@example.com",
-  role: "admin",
+  role: "admin" as const,
+  loginMethod: "guest",
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  lastSignedIn: new Date(),
 } as const;
 
 // --- User Operations ---
