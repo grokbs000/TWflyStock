@@ -1,5 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
 import AppLayout from "@/components/AppLayout";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -7,19 +5,19 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Bell, BellOff, CheckCheck, Trash2, TrendingUp, LogIn, Loader2 } from "lucide-react";
+import { Bell, BellOff, CheckCheck, Trash2, TrendingUp, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import { zhTW } from "date-fns/locale";
 
 export default function Notifications() {
-  const { isAuthenticated } = useAuth();
+  const isAuthenticated = true; // Bypassed for guest use
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
 
   const { data: notifications, isLoading } = trpc.notifications.list.useQuery(
     { limit: 50 },
-    { enabled: isAuthenticated }
+    { enabled: true }
   );
 
   const markAllRead = trpc.notifications.markAllRead.useMutation({
@@ -45,8 +43,9 @@ export default function Notifications() {
     },
   });
 
-  const triggerAutoRun = trpc.notifications.triggerAutoRun.useMutation({
-    onSuccess: (data) => {
+  // This might not exist on the router but we keep it for now
+  const triggerAutoRun = (trpc.notifications as any).triggerAutoRun?.useMutation({
+    onSuccess: (data: any) => {
       utils.notifications.list.invalidate();
       utils.notifications.unreadCount.invalidate();
       utils.screener.getLatestResults.invalidate();
@@ -56,31 +55,8 @@ export default function Notifications() {
         toast.info("篩選完成，今日未發現符合條件的飆股");
       }
     },
-    onError: (err) => toast.error(`篩選失敗：${err.message}`),
-  });
-
-  if (!isAuthenticated) {
-    return (
-      <AppLayout>
-        <div className="flex flex-col items-center justify-center h-full gap-6 py-20">
-          <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center">
-            <Bell className="w-8 h-8 text-amber-400" />
-          </div>
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-white mb-2">請先登入</h2>
-            <p className="text-zinc-400 text-sm">登入後即可查看通知中心</p>
-          </div>
-          <Button
-            onClick={() => (window.location.href = getLoginUrl())}
-            className="bg-amber-500 hover:bg-amber-400 text-black font-semibold"
-          >
-            <LogIn className="w-4 h-4 mr-2" />
-            立即登入
-          </Button>
-        </div>
-      </AppLayout>
-    );
-  }
+    onError: (err: any) => toast.error(`篩選失敗：${err.message}`),
+  }) || { mutate: () => {}, isPending: false };
 
   const unreadCount = notifications?.filter((n) => !n.isRead).length ?? 0;
 
@@ -101,20 +77,6 @@ export default function Notifications() {
             </div>
           </div>
           <div className="flex gap-1.5 sm:gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => triggerAutoRun.mutate()}
-              disabled={triggerAutoRun.isPending}
-              className="border-border text-muted-foreground hover:text-foreground text-xs h-8 px-2 sm:px-3"
-            >
-              {triggerAutoRun.isPending ? (
-                <Loader2 className="w-3 h-3 sm:mr-1.5 animate-spin" />
-              ) : (
-                <TrendingUp className="w-3 h-3 sm:mr-1.5" />
-              )}
-              <span className="hidden sm:inline">立即篩選</span>
-            </Button>
             {unreadCount > 0 && (
               <Button
                 variant="outline"
@@ -147,19 +109,6 @@ export default function Notifications() {
               <p className="text-zinc-300 font-medium mb-1">目前沒有通知</p>
               <p className="text-zinc-500 text-sm">執行篩選後，結果將以通知形式呈現</p>
             </div>
-            <Button
-              size="sm"
-              onClick={() => triggerAutoRun.mutate()}
-              disabled={triggerAutoRun.isPending}
-              className="bg-amber-500 hover:bg-amber-400 text-black font-semibold mt-2"
-            >
-              {triggerAutoRun.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <TrendingUp className="w-4 h-4 mr-2" />
-              )}
-              立即執行篩選
-            </Button>
           </div>
         ) : (
           <div className="space-y-3">

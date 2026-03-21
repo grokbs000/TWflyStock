@@ -1,129 +1,125 @@
 import {
-  boolean,
-  decimal,
-  int,
-  json,
-  mysqlEnum,
-  mysqlTable,
+  integer,
+  real,
+  sqliteTable,
   text,
-  timestamp,
-  varchar,
-} from "drizzle-orm/mysql-core";
+} from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  openId: text("openId").notNull().unique(),
   name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+  email: text("email"),
+  loginMethod: text("loginMethod"),
+  role: text("role", { enum: ["user", "admin"] }).default("user").notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" }).default(sql`(strftime('%s', 'now') * 1000)`).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).default(sql`(strftime('%s', 'now') * 1000)`).notNull(),
+  lastSignedIn: integer("lastSignedIn", { mode: "timestamp_ms" }).default(sql`(strftime('%s', 'now') * 1000)`).notNull(),
 });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 // 篩選條件設定
-export const screenerSettings = mysqlTable("screener_settings", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  name: varchar("name", { length: 128 }).notNull().default("預設設定"),
-  // MA 天數
-  maPeriods: json("maPeriods").$type<number[]>(),
+export const screenerSettings = sqliteTable("screener_settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull().unique(), // Added unique for upsert
+  name: text("name").notNull().default("預設設定"),
+  // MA 天數 (Stored as JSON string in text column)
+  maPeriods: text("maPeriods"), 
   // 成交量倍數閾值
-  volumeMultiplier: decimal("volumeMultiplier", { precision: 5, scale: 2 }).notNull().default("1.5"),
+  volumeMultiplier: real("volumeMultiplier").notNull().default(1.5),
   // VR 閾值
-  vrThreshold: int("vrThreshold").notNull().default(120),
+  vrThreshold: integer("vrThreshold").notNull().default(120),
   // VR 計算週期
-  vrPeriod: int("vrPeriod").notNull().default(26),
+  vrPeriod: integer("vrPeriod").notNull().default(26),
   // 長紅K 最小漲幅 %
-  bullishCandleMinPct: decimal("bullishCandleMinPct", { precision: 5, scale: 2 }).notNull().default("2.0"),
+  bullishCandleMinPct: real("bullishCandleMinPct").notNull().default(2.0),
   // 掃描股票數量限制（0 = 全部，預設 900）
-  scanLimit: int("scanLimit").notNull().default(900),
+  scanLimit: integer("scanLimit").notNull().default(900),
   // 每日自動篩選開關
-  autoRunEnabled: boolean("autoRunEnabled").notNull().default(false),
+  autoRunEnabled: integer("autoRunEnabled", { mode: "boolean" }).notNull().default(false),
   // 是否為預設設定
-  isDefault: boolean("isDefault").notNull().default(false),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  isDefault: integer("isDefault", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" }).default(sql`(strftime('%s', 'now') * 1000)`).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp_ms" }).default(sql`(strftime('%s', 'now') * 1000)`).notNull(),
 });
 
 export type ScreenerSettings = typeof screenerSettings.$inferSelect;
 export type InsertScreenerSettings = typeof screenerSettings.$inferInsert;
 
 // 篩選結果（每次執行的批次結果）
-export const screenerRuns = mysqlTable("screener_runs", {
-  id: int("id").autoincrement().primaryKey(),
-  runDate: varchar("runDate", { length: 10 }).notNull(), // YYYY-MM-DD
-  totalScanned: int("totalScanned").notNull().default(0),
-  totalMatched: int("totalMatched").notNull().default(0),
-  status: mysqlEnum("status", ["running", "completed", "failed"]).notNull().default("running"),
+export const screenerRuns = sqliteTable("screener_runs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  runDate: text("runDate").notNull(), // YYYY-MM-DD
+  totalScanned: integer("totalScanned").notNull().default(0),
+  totalMatched: integer("totalMatched").notNull().default(0),
+  status: text("status", { enum: ["running", "completed", "failed"] }).notNull().default("running"),
   errorMessage: text("errorMessage"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  completedAt: timestamp("completedAt"),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" }).default(sql`(strftime('%s', 'now') * 1000)`).notNull(),
+  completedAt: integer("completedAt", { mode: "timestamp_ms" }),
 });
 
 export type ScreenerRun = typeof screenerRuns.$inferSelect;
 export type InsertScreenerRun = typeof screenerRuns.$inferInsert;
 
 // 個別股票篩選結果
-export const screenerResults = mysqlTable("screener_results", {
-  id: int("id").autoincrement().primaryKey(),
-  runId: int("runId").notNull(),
-  stockCode: varchar("stockCode", { length: 10 }).notNull(),
-  stockName: varchar("stockName", { length: 64 }).notNull(),
-  currentPrice: decimal("currentPrice", { precision: 10, scale: 2 }),
-  priceChange: decimal("priceChange", { precision: 10, scale: 2 }),
-  priceChangePct: decimal("priceChangePct", { precision: 8, scale: 4 }),
-  volume: int("volume"),
+export const screenerResults = sqliteTable("screener_results", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  runId: integer("runId").notNull(),
+  stockCode: text("stockCode").notNull(),
+  stockName: text("stockName").notNull(),
+  currentPrice: real("currentPrice"),
+  priceChange: real("priceChange"),
+  priceChangePct: real("priceChangePct"),
+  volume: integer("volume"),
   // 各條件是否符合
-  condMaAligned: boolean("condMaAligned").notNull().default(false),
-  condVolumeSpike: boolean("condVolumeSpike").notNull().default(false),
-  condObvRising: boolean("condObvRising").notNull().default(false),
-  condVrAbove: boolean("condVrAbove").notNull().default(false),
-  condBullishBreakout: boolean("condBullishBreakout").notNull().default(false),
+  condMaAligned: integer("condMaAligned", { mode: "boolean" }).notNull().default(false),
+  condVolumeSpike: integer("condVolumeSpike", { mode: "boolean" }).notNull().default(false),
+  condObvRising: integer("condObvRising", { mode: "boolean" }).notNull().default(false),
+  condVrAbove: integer("condVrAbove", { mode: "boolean" }).notNull().default(false),
+  condBullishBreakout: integer("condBullishBreakout", { mode: "boolean" }).notNull().default(false),
   // 指標數值
-  ma5: decimal("ma5", { precision: 10, scale: 2 }),
-  ma10: decimal("ma10", { precision: 10, scale: 2 }),
-  ma20: decimal("ma20", { precision: 10, scale: 2 }),
-  ma40: decimal("ma40", { precision: 10, scale: 2 }),
-  volumeRatio: decimal("volumeRatio", { precision: 8, scale: 4 }),
-  vrValue: decimal("vrValue", { precision: 8, scale: 2 }),
-  obvValue: decimal("obvValue", { precision: 20, scale: 2 }),
-  breakoutPrice: decimal("breakoutPrice", { precision: 10, scale: 2 }),
+  ma5: real("ma5"),
+  ma10: real("ma10"),
+  ma20: real("ma20"),
+  ma40: real("ma40"),
+  volumeRatio: real("volumeRatio"),
+  vrValue: real("vrValue"),
+  obvValue: real("obvValue"),
+  breakoutPrice: real("breakoutPrice"),
   // 符合條件數量
-  conditionsMetCount: int("conditionsMetCount").notNull().default(0),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  conditionsMetCount: integer("conditionsMetCount").notNull().default(0),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" }).default(sql`(strftime('%s', 'now') * 1000)`).notNull(),
 });
 
 export type ScreenerResult = typeof screenerResults.$inferSelect;
 export type InsertScreenerResult = typeof screenerResults.$inferInsert;
 
 // 觀察清單
-export const watchlist = mysqlTable("watchlist", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  stockCode: varchar("stockCode", { length: 10 }).notNull(),
-  stockName: varchar("stockName", { length: 64 }).notNull(),
-  addedPrice: decimal("addedPrice", { precision: 10, scale: 2 }),
+export const watchlist = sqliteTable("watchlist", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  stockCode: text("stockCode").notNull(),
+  stockName: text("stockName").notNull(),
+  addedPrice: real("addedPrice"),
   note: text("note"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" }).default(sql`(strftime('%s', 'now') * 1000)`).notNull(),
 });
 
 export type Watchlist = typeof watchlist.$inferSelect;
 export type InsertWatchlist = typeof watchlist.$inferInsert;
 
 // 通知記錄
-export const notifications = mysqlTable("notifications", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  runId: int("runId"),
-  title: varchar("title", { length: 256 }).notNull(),
+export const notifications = sqliteTable("notifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("userId").notNull(),
+  runId: integer("runId"),
+  title: text("title").notNull(),
   content: text("content").notNull(),
-  isRead: boolean("isRead").notNull().default(false),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  isRead: integer("isRead", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" }).default(sql`(strftime('%s', 'now') * 1000)`).notNull(),
 });
 
 export type Notification = typeof notifications.$inferSelect;

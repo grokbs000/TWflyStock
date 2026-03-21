@@ -70,6 +70,8 @@ async function startServer() {
       scanned: job.scanned,
       total: job.total,
       matched: job.results.length,
+      totalScanned: job.scanned,
+      totalMatched: job.results.length,
       results: job.status === "done" ? job.results : job.results.slice(-10),
       error: job.error,
     });

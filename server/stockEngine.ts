@@ -451,7 +451,8 @@ export async function startScreenJob(
     const allStocks = await getTwStocks();
     const limit = params.scanLimit ?? 100;
     const minCond = params.minConditions ?? 5;
-    const stocks = allStocks.slice(0, limit);
+    // scanLimit 0 means All Stocks
+    const stocks = limit === 0 ? allStocks : allStocks.slice(0, limit);
     job.total = stocks.length;
 
     const concurrency = pLimit(10);
@@ -477,6 +478,7 @@ export async function startScreenJob(
 
     if (job.status !== "cancelled") {
       job.status = "done";
+      console.log(`[Job] ${jobId} finished. Scanned: ${job.scanned}, Matched: ${job.results.length}`);
     }
   } catch (e) {
     job.status = "error";

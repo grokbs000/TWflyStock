@@ -18,6 +18,7 @@ function Router() {
       <Route path="/chart/:symbol" component={StockChart} />
       <Route path="/watchlist" component={Watchlist} />
       <Route path="/history" component={History} />
+      <Route path="/history/:id" component={History} />
       <Route path="/notifications" component={Notifications} />
       <Route path="/settings" component={Settings} />
       <Route path="/404" component={NotFound} />

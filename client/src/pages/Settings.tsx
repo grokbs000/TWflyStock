@@ -94,25 +94,6 @@ export default function Settings() {
     toast.info("已重置為預設值（尚未儲存）");
   };
 
-  if (!isAuthenticated) {
-    return (
-      <AppLayout>
-        <div className="flex flex-col items-center justify-center min-h-screen gap-6">
-          <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <SettingsIcon className="w-10 h-10 text-primary/60" />
-          </div>
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-foreground mb-2">請先登入</h2>
-            <p className="text-muted-foreground text-sm">登入後即可自訂篩選條件參數</p>
-          </div>
-          <Button onClick={() => (window.location.href = getLoginUrl())}>
-            <LogIn className="w-4 h-4 mr-2" />
-            立即登入
-          </Button>
-        </div>
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout>

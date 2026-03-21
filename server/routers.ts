@@ -27,7 +27,7 @@ import {
   getScreenerSettings,
   getUnreadNotificationCount,
   getUsersWithAutoRun,
-  getWatchlist,
+  getWatchlist, GUEST_USER,
   insertScreenerResults,
   isInWatchlist,
   markAllNotificationsRead,
@@ -219,27 +219,27 @@ export const appRouter = router({
           if (input.results.length > 0) {
             await insertScreenerResults(
               input.results.map((r) => ({
-                runId,
-                stockCode: r.stockCode as string,
-                stockName: r.stockName as string,
-                currentPrice: r.currentPrice ? String(r.currentPrice) : null,
-                priceChange: r.priceChange ? String(r.priceChange) : null,
-                priceChangePct: r.priceChangePct ? String(r.priceChangePct) : null,
-                volume: r.volume as number | null,
-                condMaAligned: r.condMaAligned as boolean,
-                condVolumeSpike: r.condVolumeSpike as boolean,
-                condObvRising: r.condObvRising as boolean,
-                condVrAbove: r.condVrAbove as boolean,
-                condBullishBreakout: r.condBullishBreakout as boolean,
-                conditionsMetCount: r.conditionsMetCount as number,
-                ma5: (r.maValues as Record<string, unknown>)?.["5"] ? String((r.maValues as Record<string, unknown>)["5"]) : null,
-                ma10: (r.maValues as Record<string, unknown>)?.["10"] ? String((r.maValues as Record<string, unknown>)["10"]) : null,
-                ma20: (r.maValues as Record<string, unknown>)?.["20"] ? String((r.maValues as Record<string, unknown>)["20"]) : null,
-                ma40: (r.maValues as Record<string, unknown>)?.["40"] ? String((r.maValues as Record<string, unknown>)["40"]) : null,
-                volumeRatio: r.volumeRatio ? String(r.volumeRatio) : null,
-                vrValue: r.vrValue ? String(r.vrValue) : null,
-                obvValue: r.obvValue ? String(r.obvValue) : null,
-                breakoutPrice: r.breakoutPrice ? String(r.breakoutPrice) : null,
+                runId: runId as number,
+                stockCode: String(r.stockCode || ""),
+                stockName: String(r.stockName || ""),
+                currentPrice: r.currentPrice != null ? Number(r.currentPrice) : null,
+                priceChange: r.priceChange != null ? Number(r.priceChange) : null,
+                priceChangePct: r.priceChangePct != null ? Number(r.priceChangePct) : null,
+                volume: r.volume != null ? Number(r.volume) : null,
+                condMaAligned: Boolean(r.condMaAligned),
+                condVolumeSpike: Boolean(r.condVolumeSpike),
+                condObvRising: Boolean(r.condObvRising),
+                condVrAbove: Boolean(r.condVrAbove),
+                condBullishBreakout: Boolean(r.condBullishBreakout),
+                conditionsMetCount: Number(r.conditionsMetCount || 0),
+                ma5: (r.maValues as any)?.["5"] != null ? Number((r.maValues as any)["5"]) : null,
+                ma10: (r.maValues as any)?.["10"] != null ? Number((r.maValues as any)["10"]) : null,
+                ma20: (r.maValues as any)?.["20"] != null ? Number((r.maValues as any)["20"]) : null,
+                ma40: (r.maValues as any)?.["40"] != null ? Number((r.maValues as any)["40"]) : null,
+                volumeRatio: r.volumeRatio != null ? Number(r.volumeRatio) : null,
+                vrValue: r.vrValue != null ? Number(r.vrValue) : null,
+                obvValue: r.obvValue != null ? Number(r.obvValue) : null,
+                breakoutPrice: r.breakoutPrice != null ? Number(r.breakoutPrice) : null,
               }))
             );
           }
@@ -323,9 +323,10 @@ export const appRouter = router({
         return result;
       }),
 
-    // 獲取用戶篩選設定
-    getSettings: protectedProcedure.query(async ({ ctx }) => {
-      const settings = await getScreenerSettings(ctx.user.id);
+    // 獲獲用戶篩選設定
+    getSettings: publicProcedure.query(async ({ ctx }) => {
+      const userId = ctx.user?.id || GUEST_USER.id;
+      const settings = await getScreenerSettings(userId);
       if (!settings) {
         return {
           maPeriods: [5, 10, 20, 40],
@@ -342,9 +343,10 @@ export const appRouter = router({
     }),
 
     // 更新篩選設定
-    updateSettings: protectedProcedure
+    updateSettings: publicProcedure
       .input(screenerSettingsSchema)
       .mutation(async ({ ctx, input }) => {
+        const userId = ctx.user?.id || GUEST_USER.id;
         const data: Record<string, unknown> = {};
         if (input.maPeriods !== undefined) data.maPeriods = input.maPeriods;
         if (input.volumeMultiplier !== undefined) data.volumeMultiplier = String(input.volumeMultiplier);
@@ -353,7 +355,7 @@ export const appRouter = router({
         if (input.bullishCandleMinPct !== undefined) data.bullishCandleMinPct = String(input.bullishCandleMinPct);
         if (input.scanLimit !== undefined) data.scanLimit = input.scanLimit;
         if (input.autoRunEnabled !== undefined) data.autoRunEnabled = input.autoRunEnabled;
-        await upsertScreenerSettings(ctx.user.id, data);
+        await upsertScreenerSettings(userId, data);
         return { success: true };
       }),
 

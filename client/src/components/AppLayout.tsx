@@ -110,66 +110,24 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
         {/* User Section */}
         <div className="border-t border-sidebar-border p-3">
-          {isAuthenticated && user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className={cn(
-                    "w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-sidebar-accent transition-colors",
-                    collapsed && "justify-center"
-                  )}
-                >
-                  <Avatar className="w-7 h-7 shrink-0">
-                    <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
-                      {user.name?.[0]?.toUpperCase() ?? "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  {!collapsed && (
-                    <div className="flex-1 text-left overflow-hidden">
-                      <div className="text-xs font-medium text-sidebar-foreground truncate">{user.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">{user.email}</div>
-                    </div>
-                  )}
-                  {!collapsed && unreadCount && unreadCount > 0 ? (
-                    <Badge className="bg-primary/20 text-primary border-primary/30 text-xs px-1.5 py-0 shrink-0">
-                      {unreadCount}
-                    </Badge>
-                  ) : null}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start" className="w-48 bg-popover border-border">
-                <DropdownMenuItem className="text-sm cursor-pointer">
-                  <User className="w-3.5 h-3.5 mr-2" />
-                  個人資料
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-sm cursor-pointer">
-                  <Bell className="w-3.5 h-3.5 mr-2" />
-                  通知
-                  {unreadCount && unreadCount > 0 ? (
-                    <Badge className="ml-auto bg-primary/20 text-primary border-primary/30 text-xs">{unreadCount}</Badge>
-                  ) : null}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-sm text-destructive cursor-pointer focus:text-destructive"
-                  onClick={() => logout()}
-                >
-                  <LogOut className="w-3.5 h-3.5 mr-2" />
-                  登出
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn("w-full border-sidebar-border text-muted-foreground hover:text-foreground", collapsed && "px-2")}
-              onClick={() => (window.location.href = getLoginUrl())}
-            >
-              <LogIn className="w-3.5 h-3.5 shrink-0" />
-              {!collapsed && <span className="ml-2">登入</span>}
-            </Button>
-          )}
+          <div
+            className={cn(
+              "w-full flex items-center gap-3 px-2 py-2 rounded-lg bg-sidebar-accent/50",
+              collapsed && "justify-center"
+            )}
+          >
+            <Avatar className="w-7 h-7 shrink-0">
+              <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+                G
+              </AvatarFallback>
+            </Avatar>
+            {!collapsed && (
+              <div className="flex-1 text-left overflow-hidden">
+                <div className="text-xs font-medium text-sidebar-foreground truncate">訪客使用者</div>
+                <div className="text-xs text-muted-foreground truncate">無需登入即可使用</div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Collapse Toggle */}
@@ -217,41 +175,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
             );
           })}
           {/* User avatar in tab bar */}
-          {isAuthenticated && user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 px-1 text-muted-foreground">
-                  <Avatar className="w-5 h-5">
-                    <AvatarFallback className="bg-primary/20 text-primary text-[9px] font-bold">
-                      {user.name?.[0]?.toUpperCase() ?? "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-[10px] font-medium leading-none">我的</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="end" className="w-44 bg-popover border-border mb-1">
-                <div className="px-3 py-2 border-b border-border">
-                  <p className="text-xs font-medium text-foreground truncate">{user.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                </div>
-                <DropdownMenuItem
-                  className="text-sm text-destructive cursor-pointer focus:text-destructive mt-1"
-                  onClick={() => logout()}
-                >
-                  <LogOut className="w-3.5 h-3.5 mr-2" />
-                  登出
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <button
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 px-1 text-muted-foreground"
-              onClick={() => (window.location.href = getLoginUrl())}
-            >
-              <LogIn className="w-5 h-5" />
-              <span className="text-[10px] font-medium leading-none">登入</span>
-            </button>
-          )}
+          <div className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 px-1 text-muted-foreground">
+            <Avatar className="w-5 h-5">
+              <AvatarFallback className="bg-primary/20 text-primary text-[9px] font-bold">
+                G
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-[10px] font-medium leading-none">訪客</span>
+          </div>
         </div>
       </nav>
     </div>

@@ -14,9 +14,10 @@ interface RunScreenerButtonProps {
   onComplete?: (results?: unknown[]) => void;
   onProgress?: (progress: ScreenProgress) => void;
   onMatch?: (stock: unknown) => void;
+  selectedConditions: string[];
 }
 
-export default function RunScreenerButton({ onComplete, onProgress, onMatch }: RunScreenerButtonProps) {
+export default function RunScreenerButton({ onComplete, onProgress, onMatch, selectedConditions }: RunScreenerButtonProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState<ScreenProgress | null>(null);
   const jobIdRef = useRef<string | null>(null);
@@ -168,7 +169,7 @@ export default function RunScreenerButton({ onComplete, onProgress, onMatch }: R
       vrPeriod: Number(userSettings?.vrPeriod ?? 26),
       bullishCandleMinPct: Number(userSettings?.bullishCandleMinPct ?? 2.0),
       scanLimit: Number((userSettings as { scanLimit?: number })?.scanLimit ?? 900),
-      minConditions: 5,
+      minConditions: selectedConditions.length > 0 ? selectedConditions.length : 5,
     };
 
     toast.loading("飆股篩選啟動中...", { id: "screener-run" });
