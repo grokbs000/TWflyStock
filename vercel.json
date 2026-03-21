@@ -5,7 +5,7 @@
       "destination": "/api"
     },
     {
-      "source": "/(.*)",
+      "source": "/client/(.*)",
       "destination": "/index.html"
     }
   ]
