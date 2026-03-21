@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1772372858484,
+      "tag": "0000_melted_sebastian_shaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1772373006922,
+      "tag": "0001_orange_norman_osborn",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1772373025438,
+      "tag": "0002_wonderful_lady_deathstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1772377807357,
+      "tag": "0003_skinny_sphinx",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1772379054713,
+      "tag": "0004_colorful_retro_girl",
+      "breakpoints": true
+    }
+  ]
+}

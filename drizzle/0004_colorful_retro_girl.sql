@@ -1,0 +1,1 @@
+ALTER TABLE `screener_settings` ADD `scanLimit` int DEFAULT 900 NOT NULL;

@@ -1,0 +1,25 @@
+{
+  "query": "SELECT * FROM `__drizzle_migrations` ORDER BY created_at DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3pMJTHutwYtWnTk.0a28fb16695f --database aJDSVABh6xBhfzGeH2bXVb --execute SELECT * FROM `__drizzle_migrations` ORDER BY created_at DESC;",
+  "rows": [
+    {
+      "id": "3",
+      "hash": "0002_wonderful_lady_deathstrike",
+      "created_at": "1772373099001"
+    },
+    {
+      "id": "2",
+      "hash": "0001_orange_norman_osborn",
+      "created_at": "1772373099000"
+    },
+    {
+      "id": "1",
+      "hash": "814a08e40d7fc2bcfd458759d18319198ca8ae394f2fa15617a78678e9c9c93b",
+      "created_at": "1772372858484"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\thash\tcreated_at\n3\t0002_wonderful_lady_deathstrike\t1772373099001\n2\t0001_orange_norman_osborn\t1772373099000\n1\t814a08e40d7fc2bcfd458759d18319198ca8ae394f2fa15617a78678e9c9c93b\t1772372858484\n",
+  "stderr": "",
+  "execution_time_ms": 1663
+}

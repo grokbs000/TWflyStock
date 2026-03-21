@@ -1,0 +1,1 @@
+ALTER TABLE `screener_settings` ADD `autoRunEnabled` boolean DEFAULT false NOT NULL;

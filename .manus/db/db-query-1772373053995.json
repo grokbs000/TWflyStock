@@ -1,0 +1,24 @@
+{
+  "query": "SHOW CREATE TABLE notifications;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3pMJTHutwYtWnTk.0a28fb16695f --database aJDSVABh6xBhfzGeH2bXVb --execute SHOW CREATE TABLE notifications;",
+  "rows": [
+    {
+      "Table": "notifications",
+      "Create Table": "CREATE TABLE `notifications` ("
+    }
+  ],
+  "messages": [
+    "  `id` int NOT NULL AUTO_INCREMENT,",
+    "  `userId` int NOT NULL,",
+    "  `runId` int DEFAULT NULL,",
+    "  `title` varchar(256) COLLATE utf8mb4_unicode_ci NOT NULL,",
+    "  `content` text COLLATE utf8mb4_unicode_ci NOT NULL,",
+    "  `isRead` tinyint(1) NOT NULL DEFAULT '0',",
+    "  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,",
+    "  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */",
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+  ],
+  "stdout": "Table\tCreate Table\nnotifications\tCREATE TABLE `notifications` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `userId` int NOT NULL,\n  `runId` int DEFAULT NULL,\n  `title` varchar(256) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `content` text COLLATE utf8mb4_unicode_ci NOT NULL,\n  `isRead` tinyint(1) NOT NULL DEFAULT '0',\n  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci\n",
+  "stderr": "",
+  "execution_time_ms": 1585
+}

@@ -1,0 +1,1 @@
+ALTER TABLE `screener_settings` MODIFY COLUMN `maPeriods` json;
