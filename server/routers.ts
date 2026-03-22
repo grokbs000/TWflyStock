@@ -91,7 +91,7 @@ export const appRouter = router({
           vrThreshold: Number(input.settings?.vrThreshold ?? userSettings?.vrThreshold ?? 120),
           vrPeriod: Number(input.settings?.vrPeriod ?? userSettings?.vrPeriod ?? 26),
           bullishCandleMinPct: Number(input.settings?.bullishCandleMinPct ?? userSettings?.bullishCandleMinPct ?? 2.0),
-          scanLimit: Number(input.settings?.scanLimit ?? userSettings?.scanLimit ?? 900),
+          scanLimit: Number(input.settings?.scanLimit ?? userSettings?.scanLimit ?? 0),
           minConditions: input.minConditions,
         };
 
@@ -268,7 +268,7 @@ export const appRouter = router({
           vrThreshold: 120,
           vrPeriod: 26,
           bullishCandleMinPct: "2.0",
-          scanLimit: 900,
+          scanLimit: 0,
           autoRunEnabled: false,
           isDefault: true,
         };
@@ -405,7 +405,7 @@ export const appRouter = router({
         vrThreshold: Number(userSettings?.vrThreshold ?? 120),
         vrPeriod: Number(userSettings?.vrPeriod ?? 26),
         bullishCandleMinPct: Number(userSettings?.bullishCandleMinPct ?? 2.0),
-        scanLimit: Number(userSettings?.scanLimit ?? 900),
+        scanLimit: Number(userSettings?.scanLimit ?? 0),
         minConditions: 5,
       };
 

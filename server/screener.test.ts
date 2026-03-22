@@ -197,12 +197,12 @@ describe("notifications.delete", () => {
 });
 
 describe("screener.getSettings with scanLimit", () => {
-  it("returns default scanLimit of 900", async () => {
+  it("returns default scanLimit of 0", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
     const result = await caller.screener.getSettings();
     expect(result).toHaveProperty("scanLimit");
-    expect(result.scanLimit).toBe(900);
+    expect(result.scanLimit).toBe(0);
   });
 
   it("returns default autoRunEnabled as false", async () => {

@@ -83,7 +83,7 @@ export async function createApp(server?: any) {
       vrThreshold: body.vrThreshold ?? 80,
       vrPeriod: body.vrPeriod ?? 26,
       bullishMinPct: body.bullishCandleMinPct ?? 2.0,
-      scanLimit: body.scanLimit ?? 900,
+      scanLimit: body.scanLimit ?? 0,
       minConditions: body.minConditions ?? 5,
     }, userId).catch(err => {
       console.error(`[Job ${jobId}] Failed:`, err);
@@ -128,7 +128,7 @@ export async function createApp(server?: any) {
     res.json({
       status: statusMap[run.status] || "error",
       scanned: run.totalScanned,
-      total: (run as any).totalToScan || 900, // Use the new totalToScan field
+      total: (run as any).totalToScan || 0, // Use the new totalToScan field
       matched: run.totalMatched,
       matches: matches.slice(-3),
       results: run.status === "completed" ? results : undefined,

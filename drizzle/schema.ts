@@ -37,7 +37,7 @@ export const screenerSettings = sqliteTable("screener_settings", {
   // 長紅K 最小漲幅 %
   bullishCandleMinPct: real("bullishCandleMinPct").notNull().default(2.0),
   // 掃描股票數量限制（0 = 全部，預設 900）
-  scanLimit: integer("scanLimit").notNull().default(900),
+  scanLimit: integer("scanLimit").notNull().default(0),
   // 每日自動篩選開關
   autoRunEnabled: integer("autoRunEnabled", { mode: "boolean" }).notNull().default(false),
   // 是否為預設設定

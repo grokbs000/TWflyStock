@@ -115,7 +115,7 @@ async function initDb(db: any) {
         "vrThreshold" integer DEFAULT 120 NOT NULL,
         "vrPeriod" integer DEFAULT 26 NOT NULL,
         "bullishCandleMinPct" real DEFAULT 2.0 NOT NULL,
-        "scanLimit" integer DEFAULT 900 NOT NULL,
+        "scanLimit" integer DEFAULT 0 NOT NULL,
         "autoRunEnabled" integer DEFAULT false NOT NULL,
         "isDefault" integer DEFAULT false NOT NULL,
         "createdAt" integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL,
@@ -190,7 +190,7 @@ async function initDb(db: any) {
     // Ensure default settings for guest (id=1)
     await db.run(sql`
       INSERT OR IGNORE INTO "screener_settings" ("userId", "name", "isDefault", "scanLimit", "maPeriods")
-      VALUES (1, '預設設定', 1, 900, '[5, 10, 20, 40]')
+      VALUES (1, '預設設定', 1, 0, '[5, 10, 20, 40]')
     `);
 
     console.log("[Database] Schema recovery & Guest init: OK");
@@ -245,7 +245,7 @@ export async function getUserByOpenId(openId: string) {
 // --- Screener Settings ---
 export async function getScreenerSettings(userId: number) {
   const db = await getDb();
-  if (!db) return { userId, name: "預設設定", isDefault: true, scanLimit: 100, maPeriods: [5, 10, 20, 40] };
+  if (!db) return { userId, name: "預設設定", isDefault: true, scanLimit: 0, maPeriods: [5, 10, 20, 40] };
   const results = await db.select().from(screenerSettings).where(eq(screenerSettings.userId, userId));
   const settings = results[0];
   if (settings && typeof settings.maPeriods === "string") {
