@@ -117,16 +117,16 @@ export async function createApp(server?: any) {
 }
 
 // Support direct execution for local dev/prod
+// Support direct execution for local dev/prod
+const isVercel = !!process.env.VERCEL;
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
-if (isMain || (process.env.NODE_ENV === "development" && !process.env.VERCEL)) {
+
+if (!isVercel && (isMain || process.env.NODE_ENV === "development")) {
   const preferredPort = parseInt(process.env.PORT || "3000");
   findAvailablePort(preferredPort).then(async (port) => {
-    const app = express(); // Placeholder, createApp will handle it
+    const app = express();
     const dummyServer = createServer(app);
     const realApp = await createApp(dummyServer);
-    
-    // Replace listener with the one from createApp if needed, 
-    // but better to just use the one we created.
     const finalServer = createServer(realApp);
 
     finalServer.listen(port, () => {
@@ -134,3 +134,4 @@ if (isMain || (process.env.NODE_ENV === "development" && !process.env.VERCEL)) {
     });
   }).catch(console.error);
 }
+
