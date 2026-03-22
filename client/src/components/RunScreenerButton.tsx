@@ -176,7 +176,7 @@ export default function RunScreenerButton({ onComplete, onProgress, onMatch, sel
       vrThreshold: Number(userSettings?.vrThreshold ?? 120),
       vrPeriod: Number(userSettings?.vrPeriod ?? 26),
       bullishCandleMinPct: Number(userSettings?.bullishCandleMinPct ?? 2.0),
-      scanLimit: Number((userSettings as { scanLimit?: number })?.scanLimit ?? 900),
+      scanLimit: Number((userSettings as { scanLimit?: number })?.scanLimit ?? 0),
       minConditions: selectedConditions.length > 0 ? selectedConditions.length : 5,
     };
 

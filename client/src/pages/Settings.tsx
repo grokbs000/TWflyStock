@@ -17,7 +17,7 @@ const DEFAULTS = {
   vrThreshold: 120,
   vrPeriod: 26,
   bullishCandleMinPct: 2.0,
-  scanLimit: 900,
+  scanLimit: 0,
   autoRunEnabled: false,
 };
 

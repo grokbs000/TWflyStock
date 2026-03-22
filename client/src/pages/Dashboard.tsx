@@ -69,14 +69,40 @@ export default function Dashboard() {
   const { user, isAuthenticated } = useAuth();
   const [liveProgress, setLiveProgress] = useState<{ scanned: number; total: number; matched: number } | null>(null);
   const [liveMatches, setLiveMatches] = useState<unknown[]>([]);
-  const [selectedConditions, setSelectedConditions] = useState<string[]>([
-    "condMaAligned",
-    "condVolumeSpike",
-    "condObvRising",
-    "condVrAbove",
-    "condBullishBreakout",
-  ]);
-  const [minConditions, setMinConditions] = useState(5);
+  const [selectedConditions, setSelectedConditions] = useState<string[]>(() => {
+    const saved = localStorage.getItem("screener_selected_conditions");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse saved conditions", e);
+      }
+    }
+    return [
+      "condMaAligned",
+      "condVolumeSpike",
+      "condObvRising",
+      "condVrAbove",
+      "condBullishBreakout",
+    ];
+  });
+  const [minConditions, setMinConditions] = useState<number>(() => {
+    const saved = localStorage.getItem("screener_min_conditions");
+    if (saved) {
+      const parsed = parseInt(saved, 10);
+      return isNaN(parsed) ? 5 : parsed;
+    }
+    return 5;
+  });
+
+  // Save to localStorage when settings change
+  useEffect(() => {
+    localStorage.setItem("screener_selected_conditions", JSON.stringify(selectedConditions));
+  }, [selectedConditions]);
+
+  useEffect(() => {
+    localStorage.setItem("screener_min_conditions", minConditions.toString());
+  }, [minConditions]);
 
   // Sync minConditions when selectedConditions changes
   useEffect(() => {
