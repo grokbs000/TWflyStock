@@ -1,5 +1,10 @@
 {
   "version": 2,
+  "functions": {
+    "api/*.ts": {
+      "includeFiles": "{server,shared,drizzle}/**"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/health",
