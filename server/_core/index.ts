@@ -6,12 +6,12 @@ import net from "net";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
-import { appRouter } from "../routers";
-import { createContext } from "./context";
-import { serveStatic, setupVite } from "./vite";
-import { startScreenJob, getJob, cancelJob } from "../stockEngine";
-import { getDb } from "../db";
+import { registerOAuthRoutes } from "./oauth.js";
+import { appRouter } from "../routers.js";
+import { createContext } from "./context.js";
+import { serveStatic, setupVite } from "./vite.js";
+import { startScreenJob, getJob, cancelJob } from "../stockEngine.js";
+import { getDb } from "../db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

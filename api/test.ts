@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import fs from 'node:fs';
 import path from 'node:path';
-import { getDb } from '../server/db';
+import { getDb } from '../server/db.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const diagnostics: any = {

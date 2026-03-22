@@ -1,7 +1,7 @@
-import * as schema from "../drizzle/schema";
+import * as schema from "../drizzle/schema.js";
 import fs from "node:fs";
 import path from "node:path";
-import { users, screenerSettings, screenerResults, screenerRuns, notifications, watchlist } from "../drizzle/schema";
+import { users, screenerSettings, screenerResults, screenerRuns, notifications, watchlist } from "../drizzle/schema.js";
 import { eq, desc, and, count } from "drizzle-orm";
 
 let _db: any = null;
