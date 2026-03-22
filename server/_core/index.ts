@@ -77,8 +77,7 @@ export async function createApp(server?: any) {
 
     const jobId = `run-${runId}-${Date.now()}`;
     
-    // Start background job (async)
-    startScreenJob(runId, {
+    const jobPromise = startScreenJob(runId, {
       maPeriods: body.maPeriods ?? [5, 10, 20, 40, 60],
       volumeMultiplier: body.volumeMultiplier ?? 1.5,
       vrThreshold: body.vrThreshold ?? 80,
@@ -86,7 +85,18 @@ export async function createApp(server?: any) {
       bullishMinPct: body.bullishCandleMinPct ?? 2.0,
       scanLimit: body.scanLimit ?? 900,
       minConditions: body.minConditions ?? 5,
-    }, userId).catch(err => console.error(`[Job ${jobId}] Failed:`, err));
+    }, userId).catch(err => {
+      console.error(`[Job ${jobId}] Failed:`, err);
+    });
+
+    // Use Vercel's waitUntil to keep the function alive if supported
+    if ((req as any).waitUntil) {
+      console.log(`[Vercel] Using waitUntil for Job ${jobId}`);
+      (req as any).waitUntil(jobPromise);
+    } else {
+      console.log(`[Local] Running Job ${jobId} in background`);
+      // In local dev, we just let it run
+    }
     
     res.json({ jobId, runId });
   });

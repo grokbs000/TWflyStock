@@ -65,7 +65,15 @@ export default function RunScreenerButton({ onComplete, onProgress, onMatch, sel
   const pollStatus = useCallback(async (jobId: string) => {
     try {
       const res = await fetch(`/api/screen-status/${jobId}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        if (res.status === 404) {
+          // Vercel 實例隔離可能導致暫時 404，持續輪詢即可
+          console.log(`[Screener] Job ${jobId} not found, waiting for sync...`);
+          toast.loading("雲端實例同步中...", { id: "screener-run" });
+          return;
+        }
+        return;
+      }
       const job = await res.json() as {
         status: string;
         scanned?: number;

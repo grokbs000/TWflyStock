@@ -1,4 +1,5 @@
 // Consolidated Vercel entry point
+import { waitUntil } from "@vercel/functions";
 let app: any;
 
 export default async function handler(req: any, res: any) {
@@ -18,6 +19,10 @@ export default async function handler(req: any, res: any) {
       app = await createApp();
       console.log("[Vercel] App initialized successfully.");
     }
+    
+    // Inject Vercel context into request for background tasks
+    (req as any).waitUntil = waitUntil;
+    
     return app(req, res);
   } catch (err: any) {
     console.error("[Vercel] CRITICAL: Static initialization failed", err);
