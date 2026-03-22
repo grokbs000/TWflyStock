@@ -2,7 +2,7 @@ import * as schema from "../drizzle/schema.js";
 import fs from "node:fs";
 import path from "node:path";
 import { users, screenerSettings, screenerResults, screenerRuns, notifications, watchlist } from "../drizzle/schema.js";
-import { eq, desc, and, count } from "drizzle-orm";
+import { eq, desc, and, count, sql } from "drizzle-orm";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -42,6 +42,7 @@ export async function getDb() {
             const srcPath = path.resolve(__dirname, "..", "data", "sqlite.db");
             if (fs.existsSync(srcPath)) {
               fs.copyFileSync(srcPath, tmpPath);
+              fs.chmodSync(tmpPath, 0o666);
               console.log("[Database] Copied bundled DB to /tmp from", srcPath);
             } else {
               console.warn("[Database] Source DB NOT FOUND at", srcPath);
@@ -49,6 +50,7 @@ export async function getDb() {
               const fallbackPath = path.resolve(process.cwd(), "data/sqlite.db");
               if (fs.existsSync(fallbackPath)) {
                 fs.copyFileSync(fallbackPath, tmpPath);
+                fs.chmodSync(tmpPath, 0o666);
                 console.log("[Database] Copied bundled DB to /tmp from fallback", fallbackPath);
               }
             }
@@ -64,7 +66,7 @@ export async function getDb() {
     try {
       await loadDbLibs();
       const client = LibSQL.createClient({ url: dbUrl });
-      _db = DrizzleLib.drizzle(client, { schema });
+      _db = DrizzleLib.drizzle(client, { schema, logger: true });
       
       const isRemote = dbUrl.startsWith("libsql://") || dbUrl.startsWith("https://") || dbUrl.startsWith("http://");
       console.log(`[Database] Connected to ${isRemote ? "Remote" : "Local"} LibSQL (${dbUrl})`);
@@ -196,17 +198,23 @@ export async function createScreenerRun(data: any) {
   const db = await getDb();
   if (!db) return Date.now(); // jobId fallback
   
-  // Destructure to ensure we don't pass an explicit 'id' if it's null/empty
-  const { id: _, ...insertData } = data;
+  console.log("[Database] Creating screener run (Raw SQL)...", { runDate: data.runDate, status: data.status });
   
-  console.log("[Database] Creating screener run...", insertData);
-  const res = await db.insert(screenerRuns).values({
-    ...insertData,
-    createdAt: new Date(),
-  }).returning();
+  const now = new Date().getTime();
+  const status = data.status || "running";
   
-  console.log("[Database] Screener run created, ID:", res[0].id);
-  return res[0].id;
+  // Use raw SQL to completely bypass Drizzle's column-filling logic
+  await db.run(sql`
+    INSERT INTO "screener_runs" ("runDate", "totalScanned", "totalMatched", "status", "createdAt")
+    VALUES (${data.runDate}, 0, 0, ${status}, ${now})
+  `);
+  
+  // Get the last inserted ID
+  const lastIdRes = await db.run(sql`SELECT last_insert_rowid() as id`);
+  const runId = Number(lastIdRes.rows[0].id);
+  
+  console.log("[Database] Screener run created, ID:", runId);
+  return runId;
 }
 
 export async function updateScreenerRun(id: number, data: any) {
