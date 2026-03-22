@@ -6,7 +6,7 @@ import path from "path";
 
 export async function setupVite(app: any, server: Server) {
   const { createServer: createViteServer } = await import("vite");
-  const { default: viteConfig } = await import("../../../vite.config");
+  const { default: viteConfig } = await import("../../vite.config");
   
   const serverOptions = {
     middlewareMode: true,
@@ -29,7 +29,7 @@ export async function setupVite(app: any, server: Server) {
     try {
       const clientTemplate = path.resolve(
         import.meta.dirname,
-        "../../..",
+        "../..",
         "client",
         "index.html"
       );

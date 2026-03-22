@@ -34,7 +34,7 @@ export async function getDb() {
         const tmpPath = path.join("/tmp", "sqlite.db");
         if (!fs.existsSync(tmpPath)) {
           try {
-            const srcPath = path.resolve(process.cwd(), "sqlite.db");
+            const srcPath = path.resolve(process.cwd(), "data/sqlite.db");
             if (fs.existsSync(srcPath)) {
               fs.copyFileSync(srcPath, tmpPath);
               console.log("[Database] Copied bundled DB to /tmp");

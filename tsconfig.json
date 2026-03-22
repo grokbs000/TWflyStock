@@ -18,8 +18,8 @@
     "types": ["node", "vite/client", "express"],
     "paths": {
       "@/*": ["./client/src/*"],
-      "@shared/*": ["./api/shared/*"],
-      "@server/*": ["./api/server/*"]
+      "@shared/*": ["./shared/*"],
+      "@server/*": ["./server/*"]
     }
   }
 

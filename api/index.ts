@@ -1,4 +1,4 @@
-import { createApp } from "./server/_core/index.js";
+// Consolidated Vercel entry point
 
 let app: any;
 
@@ -14,7 +14,8 @@ export default async function handler(req: any, res: any) {
 
   try {
     if (!app) {
-      console.log("[Vercel] Initializing app via static import...");
+      console.log("[Vercel] Initializing app via dynamic import...");
+      const { createApp } = await import("../server/_core/index.js");
       app = await createApp();
       console.log("[Vercel] App initialized successfully.");
     }
