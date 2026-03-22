@@ -1,0 +1,49 @@
+✘ [ERROR] Could not resolve "../../vite.config"
+
+    api/server/_core/vite.ts:9:47:
+      9 │   const { default: viteConfig } = await import("../../vite.config");
+        ╵                                                ~~~~~~~~~~~~~~~~~~~
+
+✘ [ERROR] Could not resolve "../pkg"
+
+    node_modules/lightningcss/node/index.js:17:27:
+      17 │   module.exports = require(`../pkg`);
+         ╵                            ~~~~~~~~
+
+▲ [WARNING] The glob pattern require("../lightningcss.*.node") did not match any files [empty-glob]
+
+    node_modules/lightningcss/node/index.js:22:29:
+      22 │ ...dule.exports = require(`../lightningcss.${parts.join('-')}.node`);
+         ╵                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+✘ [ERROR] No loader is configured for ".node" files: node_modules/fsevents/fsevents.node
+
+    node_modules/fsevents/fsevents.js:13:23:
+      13 │ const Native = require("./fsevents.node");
+         ╵                        ~~~~~~~~~~~~~~~~~
+
+1 warning and 3 errors
+node:child_process:964
+    throw err;
+    ^
+
+Error: Command failed: /Users/banson/MyProjects/tw_stock_screener/node_modules/@esbuild/darwin-arm64/bin/esbuild api/server/_core/index.ts --platform=node --bundle --format=esm --outfile=test_bundle.js
+    at genericNodeError (node:internal/errors:998:15)
+    at wrappedFn (node:internal/errors:543:14)
+    at checkExecSyncError (node:child_process:925:11)
+    at Object.execFileSync (node:child_process:961:15)
+    at Object.<anonymous> (/Users/banson/MyProjects/tw_stock_screener/node_modules/esbuild/bin/esbuild:222:28)
+    at Module._compile (node:internal/modules/cjs/loader:1829:14)
+    at Object..js (node:internal/modules/cjs/loader:1969:10)
+    at Module.load (node:internal/modules/cjs/loader:1552:32)
+    at Module._load (node:internal/modules/cjs/loader:1354:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19) {
+  status: 1,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 930,
+  stdout: null,
+  stderr: null
+}
+
+Node.js v25.8.1
