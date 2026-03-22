@@ -3,6 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { users, screenerSettings, screenerResults, screenerRuns, notifications, watchlist } from "../drizzle/schema.js";
 import { eq, desc, and, count } from "drizzle-orm";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let _db: any = null;
 let LibSQL: any = null;
@@ -34,10 +38,19 @@ export async function getDb() {
         const tmpPath = path.join("/tmp", "sqlite.db");
         if (!fs.existsSync(tmpPath)) {
           try {
-            const srcPath = path.resolve(process.cwd(), "data/sqlite.db");
+            // More robust path resolution using __dirname
+            const srcPath = path.resolve(__dirname, "..", "data", "sqlite.db");
             if (fs.existsSync(srcPath)) {
               fs.copyFileSync(srcPath, tmpPath);
-              console.log("[Database] Copied bundled DB to /tmp");
+              console.log("[Database] Copied bundled DB to /tmp from", srcPath);
+            } else {
+              console.warn("[Database] Source DB NOT FOUND at", srcPath);
+              // Try process.cwd fallback
+              const fallbackPath = path.resolve(process.cwd(), "data/sqlite.db");
+              if (fs.existsSync(fallbackPath)) {
+                fs.copyFileSync(fallbackPath, tmpPath);
+                console.log("[Database] Copied bundled DB to /tmp from fallback", fallbackPath);
+              }
             }
           } catch (e) {
             console.error("[Database] Failed to setup /tmp DB:", e);
@@ -114,9 +127,10 @@ export const GUEST_USER = {
 export async function upsertUser(data: any) {
   const db = await getDb();
   if (!db) return [];
-  return db.insert(users).values(data).onConflictDoUpdate({
+  const { id: _, ...insertData } = data;
+  return db.insert(users).values(insertData).onConflictDoUpdate({
     target: users.openId,
-    set: data,
+    set: insertData,
   }).returning();
 }
 
@@ -159,8 +173,9 @@ export async function getScreenerSettings(userId: number) {
 export async function upsertScreenerSettings(userId: number, data: any) {
   const db = await getDb();
   if (!db) return [];
+  const { id: _, ...rest } = data;
   const insertData = {
-    ...data,
+    ...rest,
     userId,
     maPeriods: Array.isArray(data.maPeriods) ? JSON.stringify(data.maPeriods) : JSON.stringify(data.maPeriods || [5, 10, 20, 40]),
   };
@@ -181,11 +196,16 @@ export async function toggleAutoRun(userId: number, enabled: boolean) {
 export async function createScreenerRun(data: any) {
   const db = await getDb();
   if (!db) return Date.now(); // jobId fallback
-  console.log("[Database] Creating screener run...", data);
+  
+  // Destructure to ensure we don't pass an explicit 'id' if it's null/empty
+  const { id: _, ...insertData } = data;
+  
+  console.log("[Database] Creating screener run...", insertData);
   const res = await db.insert(screenerRuns).values({
-    ...data,
+    ...insertData,
     createdAt: new Date(),
   }).returning();
+  
   console.log("[Database] Screener run created, ID:", res[0].id);
   return res[0].id;
 }
@@ -222,7 +242,10 @@ export async function insertScreenerResults(data: any[]) {
   if (!db) return;
   const chunkSize = 50;
   for (let i = 0; i < data.length; i += chunkSize) {
-    const chunk = data.slice(i, i + chunkSize);
+    const chunk = data.slice(i, i + chunkSize).map(item => {
+      const { id: _, ...rest } = item;
+      return rest;
+    });
     // Ensure all objects in the chunk have the same keys for better-sqlite3 consistency
     await db.insert(screenerResults).values(chunk);
   }
@@ -246,8 +269,9 @@ export async function getScreenerResultsByRunId(runId: number) {
 export async function createNotification(data: any) {
   const db = await getDb();
   if (!db) return [];
+  const { id: _, ...insertData } = data;
   return db.insert(notifications).values({
-    ...data,
+    ...insertData,
     isRead: false,
     createdAt: new Date(),
   }).returning();
@@ -295,8 +319,9 @@ export async function deleteNotification(id: number, _userId?: number) {
 export async function addToWatchlist(data: any) {
   const db = await getDb();
   if (!db) return null;
+  const { id: _, ...rest } = data;
   const res = await db.insert(watchlist).values({
-    ...data,
+    ...rest,
     createdAt: new Date(),
   }).onConflictDoNothing().returning();
   return res[0]?.id;
