@@ -39,6 +39,13 @@ import {
 } from "./db";
 import { z } from "zod";
 
+function safeNum(val: unknown): number | null {
+  if (val === null || val === undefined || val === "" || val === "NaN") return null;
+  const n = Number(val);
+  if (isNaN(n) || !isFinite(n)) return null;
+  return n;
+}
+
 // ─── TypeScript 股票引擎（取代 Python Flask 服務） ──────────────────────────────
 // 所有股票分析邏輯已移至 server/stockEngine.ts，使用 yahoo-finance2 套件
 // 不再依賴 Python 進程，可在生產環境正常運行
@@ -95,11 +102,10 @@ export const appRouter = router({
           status: "running",
         });
 
-         try {
+        try {
           // 使用 TypeScript 股票引擎（取代 Python Flask 服務）
-          const jobId = `run-${runId}-${Date.now()}`;
-          // 啟動背景篩選 job
-          void startScreenJob(jobId, {
+          // 啟動背景篩選 job（非同步執行）
+          void startScreenJob(runId, {
             maPeriods: settings.maPeriods,
             volumeMultiplier: settings.volumeMultiplier,
             vrThreshold: settings.vrThreshold,
@@ -107,88 +113,15 @@ export const appRouter = router({
             bullishMinPct: settings.bullishCandleMinPct,
             scanLimit: settings.scanLimit,
             minConditions: settings.minConditions,
-          });
-          // 輪詢直到完成（最多等 15 分鐘）
-          const maxWait = 15 * 60 * 1000;
-          const pollInterval = 2000;
-          const startTime = Date.now();
-          let screenResult: { results: import("./stockEngine").ScreenResult[]; totalScanned: number; totalMatched: number } | null = null;
-          while (Date.now() - startTime < maxWait) {
-            await new Promise(r => setTimeout(r, pollInterval));
-            const job = getJob(jobId);
-            if (!job) break;
-            if (job.status === "done") {
-              screenResult = {
-                results: job.results,
-                totalScanned: job.scanned,
-                totalMatched: job.results.length,
-              };
-              break;
-            }
-            if (job.status === "error") {
-              throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `篩選失敗：${job.error ?? "未知錯誤"}` });
-            }
-            if (job.status === "cancelled") {
-              throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "篩選已取消" });
-            }
-          }
-          if (!screenResult) {
-            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "篩選超時，請縮小掃描範圍後再試" });
-          }
-
-          // 儲存結果到資料庫
-          if (screenResult.results && screenResult.results.length > 0) {
-            await insertScreenerResults(
-              screenResult.results.map((r) => ({
-                runId,
-                stockCode: r.stockCode,
-                stockName: r.stockName,
-                currentPrice: r.currentPrice != null ? String(r.currentPrice) : null,
-                priceChange: r.priceChange != null ? String(r.priceChange) : null,
-                priceChangePct: r.priceChangePct != null ? String(r.priceChangePct) : null,
-                volume: r.volume ?? null,
-                condMaAligned: r.condMaAligned,
-                condVolumeSpike: r.condVolumeSpike,
-                condObvRising: r.condObvRising,
-                condVrAbove: r.condVrAbove,
-                condBullishBreakout: r.condBullishBreakout,
-                conditionsMetCount: r.conditionsMetCount,
-                ma5: r.maValues?.[5] != null ? String(r.maValues[5]) : null,
-                ma10: r.maValues?.[10] != null ? String(r.maValues[10]) : null,
-                ma20: r.maValues?.[20] != null ? String(r.maValues[20]) : null,
-                ma40: r.maValues?.[40] != null ? String(r.maValues[40]) : null,
-                volumeRatio: r.volumeRatio != null ? String(r.volumeRatio) : null,
-                vrValue: r.vrValue != null ? String(r.vrValue) : null,
-                obvValue: r.obvValue != null ? String(r.obvValue) : null,
-                breakoutPrice: r.breakoutPrice != null ? String(r.breakoutPrice) : null,
-              }))
-            );
-          }
-
-          await updateScreenerRun(runId, {
-            totalScanned: screenResult.totalScanned,
-            totalMatched: screenResult.totalMatched,
-            status: "completed",
-            completedAt: new Date(),
-          });
-
-          // 發送通知
-          if (screenResult.totalMatched > 0) {
-            await createNotification({
-              userId: ctx.user.id,
-              runId,
-              title: `發現 ${screenResult.totalMatched} 支飆股！`,
-              content: `今日篩選完成，共掃描 ${screenResult.totalScanned} 支股票，找到 ${screenResult.totalMatched} 支符合所有條件的飆股。`,
-            });
-          }
+          }, ctx.user.id);
 
           return {
             runId,
-            totalScanned: screenResult.totalScanned,
-            totalMatched: screenResult.totalMatched,
-            results: screenResult.results,
+            status: "started",
+            message: "篩選已在背景啟動，請稍候查看結果或歷史記錄"
           };
         } catch (error) {
+          console.error("[tRPC] screener.run FAILED:", error);
           await updateScreenerRun(runId, {
             status: "failed",
             errorMessage: error instanceof Error ? error.message : "Unknown error",
@@ -222,24 +155,24 @@ export const appRouter = router({
                 runId: runId as number,
                 stockCode: String(r.stockCode || ""),
                 stockName: String(r.stockName || ""),
-                currentPrice: r.currentPrice != null ? Number(r.currentPrice) : null,
-                priceChange: r.priceChange != null ? Number(r.priceChange) : null,
-                priceChangePct: r.priceChangePct != null ? Number(r.priceChangePct) : null,
-                volume: r.volume != null ? Number(r.volume) : null,
-                condMaAligned: Boolean(r.condMaAligned),
-                condVolumeSpike: Boolean(r.condVolumeSpike),
-                condObvRising: Boolean(r.condObvRising),
-                condVrAbove: Boolean(r.condVrAbove),
-                condBullishBreakout: Boolean(r.condBullishBreakout),
+                currentPrice: safeNum(r.currentPrice),
+                priceChange: safeNum(r.priceChange),
+                priceChangePct: safeNum(r.priceChangePct),
+                volume: safeNum(r.volume),
+                condMaAligned: !!r.condMaAligned,
+                condVolumeSpike: !!r.condVolumeSpike,
+                condObvRising: !!r.condObvRising,
+                condVrAbove: !!r.condVrAbove,
+                condBullishBreakout: !!r.condBullishBreakout,
                 conditionsMetCount: Number(r.conditionsMetCount || 0),
-                ma5: (r.maValues as any)?.["5"] != null ? Number((r.maValues as any)["5"]) : null,
-                ma10: (r.maValues as any)?.["10"] != null ? Number((r.maValues as any)["10"]) : null,
-                ma20: (r.maValues as any)?.["20"] != null ? Number((r.maValues as any)["20"]) : null,
-                ma40: (r.maValues as any)?.["40"] != null ? Number((r.maValues as any)["40"]) : null,
-                volumeRatio: r.volumeRatio != null ? Number(r.volumeRatio) : null,
-                vrValue: r.vrValue != null ? Number(r.vrValue) : null,
-                obvValue: r.obvValue != null ? Number(r.obvValue) : null,
-                breakoutPrice: r.breakoutPrice != null ? Number(r.breakoutPrice) : null,
+                ma5: safeNum((r.maValues as any)?.["5"]),
+                ma10: safeNum((r.maValues as any)?.["10"]),
+                ma20: safeNum((r.maValues as any)?.["20"]),
+                ma40: safeNum((r.maValues as any)?.["40"]),
+                volumeRatio: safeNum(r.volumeRatio),
+                vrValue: safeNum(r.vrValue),
+                obvValue: safeNum(r.obvValue),
+                breakoutPrice: safeNum(r.breakoutPrice),
               }))
             );
           }
@@ -262,6 +195,7 @@ export const appRouter = router({
 
           return { success: true, runId, totalScanned: input.totalScanned, totalMatched: input.totalMatched };
         } catch (error) {
+          console.error("[tRPC] saveStreamResult FAILED:", error);
           await updateScreenerRun(runId, {
             status: "failed",
             errorMessage: error instanceof Error ? error.message : "Unknown error",
@@ -479,9 +413,8 @@ export const appRouter = router({
       const runId = await createScreenerRun({ runDate: today, status: "running" });
 
       try {
-        // 使用 TypeScript 股票引擎執行自動篩選
-        const autoJobId = `auto-${runId}-${Date.now()}`;
-        void startScreenJob(autoJobId, {
+        // 使用 TypeScript 股票引擎執行自動篩選（非同步）
+        void startScreenJob(runId, {
           maPeriods: settings.maPeriods,
           volumeMultiplier: settings.volumeMultiplier,
           vrThreshold: settings.vrThreshold,
@@ -489,60 +422,9 @@ export const appRouter = router({
           bullishMinPct: settings.bullishCandleMinPct,
           scanLimit: settings.scanLimit,
           minConditions: settings.minConditions,
-        });
-        const maxWaitAuto = 15 * 60 * 1000;
-        const startTimeAuto = Date.now();
-        let autoResult: { results: import("./stockEngine").ScreenResult[]; totalScanned: number } | null = null;
-        while (Date.now() - startTimeAuto < maxWaitAuto) {
-          await new Promise(r => setTimeout(r, 2000));
-          const job = getJob(autoJobId);
-          if (!job) break;
-          if (job.status === "done") { autoResult = { results: job.results, totalScanned: job.scanned }; break; }
-          if (job.status === "error") throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `自動篩選失敗：${job.error}` });
-        }
-        if (!autoResult) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "自動篩選超時" });
-        const result = autoResult;
-        if (result.results.length > 0) {
-          await insertScreenerResults(
-            result.results.map((r) => ({
-              runId,
-              stockCode: r.stockCode,
-              stockName: r.stockName,
-              currentPrice: r.currentPrice != null ? String(r.currentPrice) : null,
-              priceChange: r.priceChange != null ? String(r.priceChange) : null,
-              priceChangePct: r.priceChangePct != null ? String(r.priceChangePct) : null,
-              volume: r.volume ?? null,
-              condMaAligned: r.condMaAligned,
-              condVolumeSpike: r.condVolumeSpike,
-              condObvRising: r.condObvRising,
-              condVrAbove: r.condVrAbove,
-              condBullishBreakout: r.condBullishBreakout,
-              conditionsMetCount: r.conditionsMetCount,
-              ma5: r.maValues?.[5] != null ? String(r.maValues[5]) : null,
-              ma10: r.maValues?.[10] != null ? String(r.maValues[10]) : null,
-              ma20: r.maValues?.[20] != null ? String(r.maValues[20]) : null,
-              ma40: r.maValues?.[40] != null ? String(r.maValues[40]) : null,
-              volumeRatio: r.volumeRatio != null ? String(r.volumeRatio) : null,
-              vrValue: r.vrValue != null ? String(r.vrValue) : null,
-              obvValue: r.obvValue != null ? String(r.obvValue) : null,
-              breakoutPrice: r.breakoutPrice != null ? String(r.breakoutPrice) : null,
-            }))
-          );
-        }
-        await updateScreenerRun(runId, {
-          totalScanned: result.totalScanned,
-          totalMatched: result.results.length,
-          status: "completed",
-          completedAt: new Date(),
-        });
-        const notifTitle = result.results.length > 0
-          ? `📈 發現 ${result.results.length} 支飆股！`
-          : `今日篩選完成，未發現符合全條件的股票`;
-        const notifContent = result.results.length > 0
-          ? `自動篩選完成，共掃描 ${result.totalScanned} 支股票，找到 ${result.results.length} 支飆股。`
-          : `自動篩選完成，共掃描 ${result.totalScanned} 支股票，目前市場尚未出現符合所有技術條件的飆股。`;
-        await createNotification({ userId: ctx.user.id, runId, title: notifTitle, content: notifContent });
-        return { success: true, runId, totalMatched: result.results.length };
+        }, ctx.user.id);
+
+        return { success: true, runId, message: "自動篩選已在背景啟動" };
       } catch (error) {
         await updateScreenerRun(runId, {
           status: "failed",

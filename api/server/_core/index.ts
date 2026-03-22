@@ -1,4 +1,3 @@
-console.log("[server/_core/index.ts] Module loading started...");
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
@@ -11,7 +10,8 @@ import { appRouter } from "../routers.js";
 import { createContext } from "./context.js";
 import { serveStatic, setupVite } from "./vite.js";
 import { startScreenJob, getJob, cancelJob } from "../stockEngine.js";
-import { getDb } from "../db.js";
+import { getDb, createScreenerRun, getScreenerRunById, getScreenerResultsByRunId, GUEST_USER } from "../db.js";
+import { sdk } from "./sdk.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,24 +36,20 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 export async function createApp(server?: any) {
   const isVercel = !!process.env.VERCEL;
-  console.log("[createApp] Starting initialization...", { isVercel });
   
   const app = express();
 
   // Configure body parser
-  console.log("[createApp] Configuring body parser...");
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // OAuth routes
-  console.log("[createApp] Registering OAuth routes...");
   registerOAuthRoutes(app);
 
   // Health check
-  console.log("[createApp] Registering health check...");
   app.get("/api/health", async (req: any, res: any) => {
     try {
-      const db = await getDb();
+      await getDb();
       res.json({ status: "ok", db: "connected", env: process.env.NODE_ENV, vercel: isVercel });
     } catch (e: any) {
       console.error("[Health] DB error:", e);
@@ -62,12 +58,27 @@ export async function createApp(server?: any) {
   });
 
   // Screening endpoints
-  console.log("[createApp] Registering screening endpoints...");
-  app.post("/api/screen-start", (req: any, res: any) => {
-    const jobId = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  app.post("/api/screen-start", async (req: any, res: any) => {
     const body = req.body || {};
-    // Ensure error handling for the floating promise
-    startScreenJob(jobId, {
+    const today = new Date().toISOString().split("T")[0];
+    
+    // Authenticate user for notifications
+    let userId: number = GUEST_USER.id;
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (user) userId = user.id;
+    } catch { /* fallback to guest */ }
+
+    // Create a run in the database
+    const runId = await createScreenerRun({
+      runDate: today,
+      status: "running",
+    });
+
+    const jobId = `run-${runId}-${Date.now()}`;
+    
+    // Start background job (async)
+    startScreenJob(runId, {
       maPeriods: body.maPeriods ?? [5, 10, 20, 40, 60],
       volumeMultiplier: body.volumeMultiplier ?? 1.5,
       vrThreshold: body.vrThreshold ?? 80,
@@ -75,20 +86,46 @@ export async function createApp(server?: any) {
       bullishMinPct: body.bullishCandleMinPct ?? 2.0,
       scanLimit: body.scanLimit ?? 900,
       minConditions: body.minConditions ?? 5,
-    }).catch(err => console.error(`[Job ${jobId}] Failed:`, err));
+    }, userId).catch(err => console.error(`[Job ${jobId}] Failed:`, err));
     
-    res.json({ jobId });
+    res.json({ jobId, runId });
   });
 
-  app.get("/api/screen-status/:jobId", (req: any, res: any) => {
-    const job = getJob(req.params.jobId);
-    if (!job) return res.status(404).json({ error: "Job not found" });
+  app.get("/api/screen-status/:jobId", async (req: any, res: any) => {
+    const jobId = req.params.jobId;
+    // Extract runId from jobId (format: run-ID-timestamp or job-ID-...)
+    const runIdMatch = jobId.match(/run-(\d+)-/);
+    const runId = runIdMatch ? parseInt(runIdMatch[1]) : null;
+
+    if (!runId) {
+      return res.status(404).json({ error: "Invalid Job ID format" });
+    }
+
+    const run = await getScreenerRunById(runId);
+    if (!run) return res.status(404).json({ error: "Job not found in database" });
+
+    // Map DB status to what frontend expects
+    const statusMap: Record<string, string> = {
+      "running": "running",
+      "completed": "done",
+      "failed": "error"
+    };
+
+    const results = run.status === "completed" ? await getScreenerResultsByRunId(runId) : [];
+    // For live matches, we'd need to query the latest ones if still running
+    const matches = run.status === "running" ? await getScreenerResultsByRunId(runId) : results;
+
     res.json({
-      status: job.status,
-      scanned: job.scanned,
-      total: job.total,
-      matched: job.results.length,
-      error: job.error,
+      status: statusMap[run.status] || "error",
+      scanned: run.totalScanned,
+      total: run.totalScanned > 0 ? run.totalScanned : 900, // Fallback if total not yet set
+      matched: run.totalMatched,
+      matches: matches.slice(-3),
+      results: run.status === "completed" ? results : undefined,
+      totalScanned: run.totalScanned,
+      totalMatched: run.totalMatched,
+      timestamp: new Date().toISOString(),
+      error: run.errorMessage,
     });
   });
 

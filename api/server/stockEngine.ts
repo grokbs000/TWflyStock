@@ -5,6 +5,7 @@
  */
 import yahooFinance from "yahoo-finance2";
 import pLimit from "p-limit";
+import { updateScreenerRun, insertScreenerResults, createNotification } from "./db.js";
 
 // ─── 型別定義 ──────────────────────────────────────────────────────────────
 
@@ -436,71 +437,124 @@ export interface ScreenJob {
   finishedAt?: number;
 }
 
-const _jobs = new Map<string, ScreenJob>();
+// Removed in-memory _jobs map to support Serverless/Vercel environments.
+// Progress is now tracked directly in the database (screener_runs table).
 
-export function getJob(jobId: string): ScreenJob | undefined {
-  return _jobs.get(jobId);
+/**
+ * @deprecated Use database-backed status instead.
+ */
+export function getJob(jobId: string): any {
+  // Return a dummy object to satisfy existing tRPC polling if it hasn't been refactored yet.
+  // Real status is now in the database.
+  return undefined;
 }
 
+/**
+ * @deprecated Use database-backed cancellation if needed.
+ */
 export function cancelJob(jobId: string): boolean {
-  const job = _jobs.get(jobId);
-  if (!job || job.status === "done" || job.status === "error") return false;
-  job.status = "cancelled";
-  return true;
+  return false;
 }
 
 export async function startScreenJob(
-  jobId: string,
-  params: ScreenParams
+  runId: number | string,
+  params: ScreenParams,
+  userId?: number
 ): Promise<void> {
-  const job: ScreenJob = {
-    status: "running",
-    progress: 0,
-    total: 0,
-    scanned: 0,
-    results: [],
-    startedAt: Date.now(),
-  };
-  _jobs.set(jobId, job);
-
+  const id = typeof runId === "string" ? parseInt(runId.split("-")[1]) : runId;
+  
   try {
     const allStocks = await getTwStocks();
     const limit = params.scanLimit ?? 100;
     const minCond = params.minConditions ?? 5;
-    // scanLimit 0 means All Stocks
     const stocks = limit === 0 ? allStocks : allStocks.slice(0, limit);
-    job.total = stocks.length;
+    
+    // Update total count in DB
+    await updateScreenerRun(id, {
+      totalScanned: stocks.length,
+      status: "running",
+    });
 
-    const concurrency = pLimit(10);
+    const concurrency = pLimit(5);
+    let scannedCount = 0;
+    const matchedResults: ScreenResult[] = [];
 
     const tasks = stocks.map(([code, name]) =>
       concurrency(async () => {
-        if (job.status === "cancelled") return;
         try {
           const result = await screenStock(code, name, params);
           if (result && result.conditionsMetCount >= minCond) {
-            job.results.push(result);
+            matchedResults.push(result);
           }
         } catch {
           // ignore individual stock errors
         } finally {
-          job.scanned += 1;
-          job.progress = Math.round((job.scanned / job.total) * 100);
+          scannedCount += 1;
+          // Update progress in DB every 20 stocks to avoid excessive writes
+          if (scannedCount % 20 === 0 || scannedCount === stocks.length) {
+            await updateScreenerRun(id, {
+              totalScanned: scannedCount,
+              totalMatched: matchedResults.length,
+            });
+          }
         }
       })
     );
 
     await Promise.all(tasks);
 
-    if (job.status !== "cancelled") {
-      job.status = "done";
-      console.log(`[Job] ${jobId} finished. Scanned: ${job.scanned}, Matched: ${job.results.length}`);
+    // Save final results and mark as completed
+    if (matchedResults.length > 0) {
+      const dbResults = matchedResults.map((r) => ({
+        runId: id,
+        stockCode: r.stockCode,
+        stockName: r.stockName,
+        currentPrice: r.currentPrice,
+        priceChange: r.priceChange,
+        priceChangePct: r.priceChangePct,
+        volume: r.volume,
+        condMaAligned: r.condMaAligned,
+        condVolumeSpike: r.condVolumeSpike,
+        condObvRising: r.condObvRising,
+        condVrAbove: r.condVrAbove,
+        condBullishBreakout: r.condBullishBreakout,
+        conditionsMetCount: r.conditionsMetCount,
+        ma5: r.maValues?.[5] ?? null,
+        ma10: r.maValues?.[10] ?? null,
+        ma20: r.maValues?.[20] ?? null,
+        ma40: r.maValues?.[40] ?? null,
+        volumeRatio: r.volumeRatio,
+        vrValue: r.vrValue,
+        obvValue: r.obvValue,
+        breakoutPrice: r.breakoutPrice,
+      }));
+      await insertScreenerResults(dbResults);
     }
+
+    await updateScreenerRun(id, {
+      status: "completed",
+      totalScanned: scannedCount,
+      totalMatched: matchedResults.length,
+      completedAt: new Date(),
+    });
+
+    // Send notification if matched
+    if (userId && matchedResults.length > 0) {
+      await createNotification({
+        userId,
+        runId: id,
+        title: `發現 ${matchedResults.length} 支飆股！`,
+        content: `今日篩選完成，共掃描 ${scannedCount} 支股票，找到 ${matchedResults.length} 支符合所有條件的飆股。`,
+      }).catch(err => console.error(`[Job ${id}] Notification failed:`, err));
+    }
+
   } catch (e) {
-    job.status = "error";
-    job.error = String(e);
-  } finally {
-    job.finishedAt = Date.now();
+    console.error(`[Job ${id}] Error:`, e);
+    await updateScreenerRun(id, {
+      status: "failed",
+      errorMessage: String(e),
+      completedAt: new Date(),
+    });
   }
 }
 

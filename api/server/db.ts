@@ -52,7 +52,15 @@ export async function getDb() {
       await loadDbLibs();
       const client = LibSQL.createClient({ url: dbUrl });
       _db = DrizzleLib.drizzle(client);
-      console.log(`[Database] Connected to LibSQL (${dbUrl})`);
+      
+      const isRemote = dbUrl.startsWith("libsql://") || dbUrl.startsWith("https://") || dbUrl.startsWith("http://");
+      console.log(`[Database] Connected to ${isRemote ? "Remote" : "Local"} LibSQL (${dbUrl})`);
+      
+      if (isVercel && !isRemote) {
+        console.warn("[Database] WARNING: Running on Vercel with a local SQLite database. Data will NOT persist between function calls.");
+        console.warn("[Database] TIP: For persistent data on Vercel, please provide a TURSO_DATABASE_URL or equivalent remote LibSQL URL.");
+      }
+
       // Initialize only if not in production or if needed
       if (!isVercel) {
         await initDb(_db);
@@ -84,7 +92,7 @@ async function initDb(db: any) {
       maPeriods: JSON.stringify([5, 10, 20, 40]),
     }).onConflictDoNothing();
     
-    console.log("[Database] Initialization complete (Guest user & settings)");
+    // Skip initialization logs
   } catch (error) {
     console.error("[Database] Initialization failed:", error);
   }
@@ -173,10 +181,12 @@ export async function toggleAutoRun(userId: number, enabled: boolean) {
 export async function createScreenerRun(data: any) {
   const db = await getDb();
   if (!db) return Date.now(); // jobId fallback
+  console.log("[Database] Creating screener run...", data);
   const res = await db.insert(screenerRuns).values({
     ...data,
     createdAt: new Date(),
   }).returning();
+  console.log("[Database] Screener run created, ID:", res[0].id);
   return res[0].id;
 }
 
