@@ -5,6 +5,15 @@ import type { TrpcContext } from "./context.js";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
+  errorFormatter({ shape, error }) {
+    console.error(`[TRPC Error] ${error.code}: ${error.message}`, error.cause);
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+      },
+    };
+  },
 });
 
 export const router = t.router;

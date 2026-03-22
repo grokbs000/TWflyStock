@@ -64,20 +64,19 @@ export async function getDb() {
     try {
       await loadDbLibs();
       const client = LibSQL.createClient({ url: dbUrl });
-      _db = DrizzleLib.drizzle(client);
+      _db = DrizzleLib.drizzle(client, { schema });
       
       const isRemote = dbUrl.startsWith("libsql://") || dbUrl.startsWith("https://") || dbUrl.startsWith("http://");
       console.log(`[Database] Connected to ${isRemote ? "Remote" : "Local"} LibSQL (${dbUrl})`);
       
       if (isVercel && !isRemote) {
-        console.warn("[Database] WARNING: Running on Vercel with a local SQLite database. Data will NOT persist between function calls.");
-        console.warn("[Database] TIP: For persistent data on Vercel, please provide a TURSO_DATABASE_URL or equivalent remote LibSQL URL.");
+        console.warn("[Database] WARNING: Running on Vercel with a local SQLite database.");
       }
 
-      // Initialize only if not in production or if needed
-      if (!isVercel) {
-        await initDb(_db);
-      }
+      // Always ensure basic entities exist (idempotent)
+      // This also serves as a schema check
+      await initDb(_db);
+      console.log("[Database] Initialization & Schema check: OK");
     } catch (error) {
       console.error("[Database] CRITICAL: Failed to connect to LibSQL:", error);
       _db = "FAILED";
