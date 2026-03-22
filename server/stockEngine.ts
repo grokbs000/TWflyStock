@@ -471,7 +471,8 @@ export async function startScreenJob(
     
     // Update total count in DB
     await updateScreenerRun(id, {
-      totalScanned: stocks.length,
+      totalToScan: stocks.length,
+      totalScanned: 0,
       status: "running",
     });
 

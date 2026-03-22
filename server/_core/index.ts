@@ -128,7 +128,7 @@ export async function createApp(server?: any) {
     res.json({
       status: statusMap[run.status] || "error",
       scanned: run.totalScanned,
-      total: run.totalScanned > 0 ? run.totalScanned : 900, // Fallback if total not yet set
+      total: (run as any).totalToScan || 900, // Use the new totalToScan field
       matched: run.totalMatched,
       matches: matches.slice(-3),
       results: run.status === "completed" ? results : undefined,

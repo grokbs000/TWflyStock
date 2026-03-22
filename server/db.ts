@@ -126,6 +126,7 @@ async function initDb(db: any) {
     await db.run(sql`CREATE TABLE IF NOT EXISTS "screener_runs" (
         "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
         "runDate" text NOT NULL,
+        "totalToScan" integer DEFAULT 0 NOT NULL,
         "totalScanned" integer DEFAULT 0 NOT NULL,
         "totalMatched" integer DEFAULT 0 NOT NULL,
         "status" text DEFAULT 'running' NOT NULL,
@@ -291,8 +292,8 @@ export async function createScreenerRun(data: any) {
   
   // Use raw SQL to completely bypass Drizzle's column-filling logic
   await db.run(sql`
-    INSERT INTO "screener_runs" ("runDate", "totalScanned", "totalMatched", "status", "createdAt")
-    VALUES (${data.runDate}, 0, 0, ${status}, ${now})
+    INSERT INTO "screener_runs" ("runDate", "totalToScan", "totalScanned", "totalMatched", "status", "createdAt")
+    VALUES (${data.runDate}, ${data.totalToScan || 0}, 0, 0, ${status}, ${now})
   `);
   
   // Get the last inserted ID

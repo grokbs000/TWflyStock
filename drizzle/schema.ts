@@ -53,6 +53,7 @@ export type InsertScreenerSettings = typeof screenerSettings.$inferInsert;
 export const screenerRuns = sqliteTable("screener_runs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   runDate: text("runDate").notNull(), // YYYY-MM-DD
+  totalToScan: integer("totalToScan").notNull().default(0),
   totalScanned: integer("totalScanned").notNull().default(0),
   totalMatched: integer("totalMatched").notNull().default(0),
   status: text("status", { enum: ["running", "completed", "failed"] }).notNull().default("running"),
