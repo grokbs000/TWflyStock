@@ -12,7 +12,7 @@ import {
   screenStock,
   startScreenJob,
   type ScreenParams,
-} from "./stockEngine";
+} from "./stockEngine.js";
 import {
   addToWatchlist,
   createNotification,
@@ -36,7 +36,7 @@ import {
   toggleAutoRun,
   updateScreenerRun,
   upsertScreenerSettings,
-} from "./db";
+} from "./db.js";
 import { z } from "zod";
 
 function safeNum(val: unknown): number | null {
