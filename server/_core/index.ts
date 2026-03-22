@@ -1,3 +1,4 @@
+console.log("[server/_core/index.ts] Module loading started...");
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
