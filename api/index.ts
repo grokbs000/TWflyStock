@@ -1,11 +1,10 @@
-import { createApp } from "../server/_core/index";
-
 let app: any;
 
 export default async function handler(req: any, res: any) {
   try {
     if (!app) {
-      console.log("[Vercel] Initializing app...");
+      console.log("[Vercel] Initializing app dynamically...");
+      const { createApp } = await import("../server/_core/index");
       app = await createApp();
     }
     return app(req, res);
@@ -14,8 +13,9 @@ export default async function handler(req: any, res: any) {
     res.status(500).json({
       error: "Internal Server Error during initialization",
       message: err.message,
-      stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+      stack: err.stack,
     });
   }
 }
+
 
