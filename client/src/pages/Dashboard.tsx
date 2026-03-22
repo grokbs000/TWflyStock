@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, TrendingUp, RefreshCw, LogIn, Download, ScanSearch, Sparkles, Zap, FileDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import type { ScreenerResult } from "../../../shared/types";
+import type { ScreenerResult } from "../../../api/shared/types";
 import { Link } from "wouter";
 
 function exportToCsv(results: unknown[], filename = "飆股篩選結果.csv") {
