@@ -66,7 +66,7 @@ export async function getDb() {
     try {
       await loadDbLibs();
       const client = LibSQL.createClient({ url: dbUrl });
-      _db = DrizzleLib.drizzle(client, { schema, logger: true });
+      _db = DrizzleLib.drizzle(client, { schema });
       
       const isRemote = dbUrl.startsWith("libsql://") || dbUrl.startsWith("https://") || dbUrl.startsWith("http://");
       console.log(`[Database] Connected to ${isRemote ? "Remote" : "Local"} LibSQL (${dbUrl})`);
@@ -90,25 +90,111 @@ export async function getDb() {
 
 async function initDb(db: any) {
   try {
-    await db.insert(users).values({
-      id: 1,
-      name: "訪客使用者",
-      email: "guest@example.com",
-      openId: "guest-user",
-      role: "admin",
-    }).onConflictDoNothing();
-
-    await db.insert(screenerSettings).values({
-      userId: 1,
-      name: "預設設定",
-      isDefault: true,
-      scanLimit: 900,
-      maPeriods: JSON.stringify([5, 10, 20, 40]),
-    }).onConflictDoNothing();
+    console.log("[Database] Running schema recovery...");
     
-    // Skip initialization logs
+    // Core Schema Setup (Idempotent)
+    await db.run(sql`CREATE TABLE IF NOT EXISTS "users" (
+        "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        "openId" text NOT NULL,
+        "name" text,
+        "email" text,
+        "loginMethod" text,
+        "role" text DEFAULT 'user' NOT NULL,
+        "createdAt" integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL,
+        "updatedAt" integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL,
+        "lastSignedIn" integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL
+    )`);
+    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS "users_openId_unique" ON "users" ("openId")`);
+
+    await db.run(sql`CREATE TABLE IF NOT EXISTS "screener_settings" (
+        "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        "userId" integer NOT NULL,
+        "name" text DEFAULT '預設設定' NOT NULL,
+        "maPeriods" text,
+        "volumeMultiplier" real DEFAULT 1.5 NOT NULL,
+        "vrThreshold" integer DEFAULT 120 NOT NULL,
+        "vrPeriod" integer DEFAULT 26 NOT NULL,
+        "bullishCandleMinPct" real DEFAULT 2.0 NOT NULL,
+        "scanLimit" integer DEFAULT 900 NOT NULL,
+        "autoRunEnabled" integer DEFAULT false NOT NULL,
+        "isDefault" integer DEFAULT false NOT NULL,
+        "createdAt" integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL,
+        "updatedAt" integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL
+    )`);
+    await db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS "screener_settings_userId_unique" ON "screener_settings" ("userId")`);
+
+    await db.run(sql`CREATE TABLE IF NOT EXISTS "screener_runs" (
+        "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        "runDate" text NOT NULL,
+        "totalScanned" integer DEFAULT 0 NOT NULL,
+        "totalMatched" integer DEFAULT 0 NOT NULL,
+        "status" text DEFAULT 'running' NOT NULL,
+        "errorMessage" text,
+        "createdAt" integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL,
+        "completedAt" integer
+    )`);
+
+    await db.run(sql`CREATE TABLE IF NOT EXISTS "screener_results" (
+        "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        "runId" integer NOT NULL,
+        "stockCode" text NOT NULL,
+        "stockName" text NOT NULL,
+        "currentPrice" real,
+        "priceChange" real,
+        "priceChangePct" real,
+        "volume" integer,
+        "condMaAligned" integer DEFAULT false NOT NULL,
+        "condVolumeSpike" integer DEFAULT false NOT NULL,
+        "condObvRising" integer DEFAULT false NOT NULL,
+        "condVrAbove" integer DEFAULT false NOT NULL,
+        "condBullishBreakout" integer DEFAULT false NOT NULL,
+        "ma5" real,
+        "ma10" real,
+        "ma20" real,
+        "ma40" real,
+        "volumeRatio" real,
+        "vrValue" real,
+        "obvValue" real,
+        "breakoutPrice" real,
+        "conditionsMetCount" integer DEFAULT 0 NOT NULL,
+        "createdAt" integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL
+    )`);
+
+    await db.run(sql`CREATE TABLE IF NOT EXISTS "watchlist" (
+        "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        "userId" integer NOT NULL,
+        "stockCode" text NOT NULL,
+        "stockName" text NOT NULL,
+        "addedPrice" real,
+        "note" text,
+        "createdAt" integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL
+    )`);
+
+    await db.run(sql`CREATE TABLE IF NOT EXISTS "notifications" (
+        "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        "userId" integer NOT NULL,
+        "runId" integer,
+        "title" text NOT NULL,
+        "content" text NOT NULL,
+        "isRead" integer DEFAULT false NOT NULL,
+        "createdAt" integer DEFAULT (strftime('%s', 'now') * 1000) NOT NULL
+    )`);
+
+    // Ensure guest user (id=1)
+    await db.run(sql`
+      INSERT OR IGNORE INTO "users" ("id", "name", "email", "openId", "role") 
+      VALUES (1, '訪客使用者', 'guest@example.com', 'guest-user', 'admin')
+    `);
+
+    // Ensure default settings for guest (id=1)
+    await db.run(sql`
+      INSERT OR IGNORE INTO "screener_settings" ("userId", "name", "isDefault", "scanLimit", "maPeriods")
+      VALUES (1, '預設設定', 1, 900, '[5, 10, 20, 40]')
+    `);
+
+    console.log("[Database] Schema recovery & Guest init: OK");
   } catch (error) {
-    console.error("[Database] Initialization failed:", error);
+    console.error("[Database] Schema recovery failed:", error);
   }
 }
 
