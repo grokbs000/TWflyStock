@@ -1,5 +1,4 @@
 // Consolidated Vercel entry point
-
 let app: any;
 
 export default async function handler(req: any, res: any) {
@@ -7,7 +6,7 @@ export default async function handler(req: any, res: any) {
   if (req.url?.includes("/api/debug-internal")) {
     return res.status(200).json({ 
       status: "ok", 
-      source: "internal_debug_static_imports_fixed",
+      source: "internal_debug_dynamic_import",
       time: new Date().toISOString()
     });
   }
@@ -30,6 +29,3 @@ export default async function handler(req: any, res: any) {
     });
   }
 }
-
-
-
