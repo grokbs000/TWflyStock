@@ -2,6 +2,18 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/api/health",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/api/test",
+      "destination": "/api/test"
+    },
+    {
+      "source": "/api/debug-internal",
+      "destination": "/api/debug-internal"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api"
     },
